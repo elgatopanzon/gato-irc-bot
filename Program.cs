@@ -3,6 +3,7 @@
 using GodotEGPNonGame.ServiceWorkers;
 
 using GatoIRCBot.Config;
+using GatoIRCBot.IRC;
 
 using GodotEGP;
 using GodotEGP.Logging;
@@ -12,6 +13,8 @@ using GodotEGP.Objects.Extensions;
 using GodotEGP.Event.Events;
 using GodotEGP.Event.Filter;
 using Godot;
+
+using System.Net;
 
 class Program
 {
@@ -45,6 +48,9 @@ class Program
 
 		var ircConfig = ServiceRegistry.Get<ConfigManager>().Get<IRCConfig>();
 		LoggerManager.LogDebug("IRC config", "", "ircConfig", ircConfig);
+
+		IRCBot ircBot = new IRCBot(ircConfig);
+		ircBot.Connect();
 
 		// wait forever until we close the program
 		await Task.Delay(-1);

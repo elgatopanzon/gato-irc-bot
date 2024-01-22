@@ -24,9 +24,9 @@ public partial class IRCFloodProtectionConfig : VConfig
 		set { _enabled.Value = value; }
 	}
 
-	internal readonly VValue<double> _rate;
+	internal readonly VValue<int> _rate;
 
-	public double Rate
+	public int Rate
 	{
 		get { return _rate.Value; }
 		set { _rate.Value = value; }
@@ -55,8 +55,8 @@ public partial class IRCFloodProtectionConfig : VConfig
 		    .Default(true)
 		    .ChangeEventsEnabled();
 
-		_rate = AddValidatedValue<double>(this)
-		    .Default(2.0)
+		_rate = AddValidatedValue<int>(this)
+		    .Default(2000)
 		    .ChangeEventsEnabled();
 
 		_burst = AddValidatedValue<int>(this)
