@@ -2,6 +2,8 @@
 
 using GodotEGPNonGame.ServiceWorkers;
 
+using GatoIRCBot.Config;
+
 using GodotEGP;
 using GodotEGP.Logging;
 using GodotEGP.Service;
@@ -40,6 +42,9 @@ class Program
 		await serviceWorker.StartAsync(new CancellationToken());
 
 		LoggerManager.LogInfo("GodotEGP ready!");
+
+		var ircConfig = ServiceRegistry.Get<ConfigManager>().Get<IRCConfig>();
+		LoggerManager.LogDebug("IRC config", "", "ircConfig", ircConfig);
 
 		// wait forever until we close the program
 		await Task.Delay(-1);
