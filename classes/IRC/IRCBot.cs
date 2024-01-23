@@ -237,12 +237,43 @@ public abstract partial class IRCBot : IDisposable
 	/**************************
 	*  Bot commands methods  *
 	**************************/
+
+	protected bool IsBotHighlight(IrcClient client, string message)
+	{
+		return (message.StartsWith($"{client.LocalUser.NickName}: "));
+	}
+
+	protected string StripBotHighlight(IrcClient client, string message)
+	{
+		if (IsBotHighlight(client, message))
+		{
+			return message.Replace($"{client.LocalUser.NickName}: ", "");
+		}
+		else
+		{
+			return message;
+		}
+	}
 	
     private bool ReadChatCommand(IrcClient client, IrcMessageEventArgs eventArgs)
     {
         // Check if given message represents chat command.
         var line = eventArgs.Text;
-        if (line.Length > 1 && line.StartsWith(_commandPrefix))
+
+		// implement support for bot hightlight commands and limiting commands
+		// to highlight only
+        bool canReadCommand = true;
+
+        if (_ircBotConfig.CommandsRequireHighlight && !IsBotHighlight(client, line))
+        {
+			LoggerManager.LogDebug("Command without highlight ignored", "", "command", line);
+
+			canReadCommand = false;
+        }
+
+        line = StripBotHighlight(client, line);
+
+        if (canReadCommand && line.Length > 1 && line.StartsWith(_commandPrefix))
         {
             // Process command.
             var parts = commandPartsSplitRegex.Split(line.Substring(1)).Select(p => p.TrimStart('/')).ToArray();

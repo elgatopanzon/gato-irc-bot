@@ -33,6 +33,14 @@ public partial class IRCBotConfig : VConfig
 		set { _adminNicknames.Value = value; }
 	}
 
+	internal readonly VValue<bool> _commandsRequireHighlight;
+
+	public bool CommandsRequireHighlight
+	{
+		get { return _commandsRequireHighlight.Value; }
+		set { _commandsRequireHighlight.Value = value; }
+	}
+
 	public IRCBotConfig()
 	{
 		_chatCommandPrefix = AddValidatedValue<string>(this)
@@ -41,6 +49,10 @@ public partial class IRCBotConfig : VConfig
 
 		_adminNicknames = AddValidatedValue<List<string>>(this)
 		    .Default(new List<string>())
+		    .ChangeEventsEnabled();
+
+		_commandsRequireHighlight = AddValidatedValue<bool>(this)
+		    .Default(true)
 		    .ChangeEventsEnabled();
 	}
 }
