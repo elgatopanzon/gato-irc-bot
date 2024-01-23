@@ -33,19 +33,11 @@ public partial class IRCBotCommandLineInterface : CommandLineInterface
 		_ircBot = ircBot;
 
 		// override the help command
-		_commands["help"] = (BotCommandHelp, "List help", false);
+		_commands["help"] = (BotCommandHelp, "List help", true);
+		_commands["quit"] = (BotCommandQuit, "Shut down the bot", false);
 	}
 
-	public virtual async Task<int> BotCommandHelp()
-	{
-        _ircClient.LocalUser.SendMessage(_ircReplyTarget, "Available commands:");
-        _ircClient.LocalUser.SendMessage(_ircReplyTarget, string.Join(", ",
-            _commands.Where(x => x.Value.includeInHelp).Select(kvPair => kvPair.Key)));
-
-		return 0;
-	}
-
-	public void ExecuteBotCommandFunction(Func<Task<int>> commandFunc, string command, List<string> parameters, IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets)
+	public async Task<int> ExecuteBotCommandFunction(Func<Task<int>> commandFunc, string command, List<string> parameters, IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets)
 	{
 		// set irc client values to use in the command
 		_ircCommand = command;
@@ -56,6 +48,37 @@ public partial class IRCBotCommandLineInterface : CommandLineInterface
         _ircReplyTarget = _ircBot.GetDefaultReplyTarget(_ircClient, _ircMessageSource, _ircMessageTargets);
 
 		// run the command
-		commandFunc();
+		return await commandFunc();
+	}
+
+	/**************************
+	*  Bot helper functions  *
+	**************************/
+	
+	public bool IsAdmin()
+	{
+		return (_ircBot.IrcBotConfig.AdminNicknames.Contains(_ircMessageSource.Name));
+	}
+
+	/**************
+	*  Commands  *
+	**************/
+
+	public virtual async Task<int> BotCommandHelp()
+	{
+        _ircClient.LocalUser.SendMessage(_ircReplyTarget, "Available commands:");
+        _ircClient.LocalUser.SendMessage(_ircReplyTarget, string.Join(", ",
+            _commands.Where(x => x.Value.includeInHelp).Select(kvPair => kvPair.Key)));
+
+		return 0;
+	}
+
+	public virtual async Task<int> BotCommandQuit()
+	{
+		if (!IsAdmin()) { throw new UserNotAdminException(); }
+
+		_ircBot.Disconnect();
+
+		return 0;
 	}
 }

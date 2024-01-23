@@ -254,7 +254,7 @@ public abstract partial class IRCBot : IDisposable
         return false;
     }
 
-    private void ReadChatCommand(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets,
+    private async void ReadChatCommand(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets,
         string command, string[] parameters)
     {
         var defaultReplyTarget = GetDefaultReplyTarget(client, source, targets);
@@ -262,7 +262,7 @@ public abstract partial class IRCBot : IDisposable
         // ChatCommandProcessor processor;
         if (CLI.IsCommand(command))
         {
-            System.Threading.Tasks.Task.Factory.StartNew(() =>
+            await System.Threading.Tasks.Task.Factory.StartNew(async () =>
             {
                 try
                 {
@@ -274,12 +274,18 @@ public abstract partial class IRCBot : IDisposable
 
                     LoggerManager.LogDebug("Executing chat command", "", "command", parameters);
 
-                    CLI.ExecuteBotCommandFunction(commandFunc, command, CLI.GetArgumentValues(command), client, source, targets);
+                    await CLI.ExecuteBotCommandFunction(commandFunc, command, CLI.GetArgumentValues(command), client, source, targets);
                 }
                 catch (InvalidCommandParametersException exInvalidCommandParameters)
                 {
                     client.LocalUser.SendNotice(defaultReplyTarget,
                         exInvalidCommandParameters.GetMessage(command));
+                }
+                catch (UserNotAdminException)
+                {
+                    LoggerManager.LogDebug("Unauthorised command execution", "", "command", $"nick:{source.Name}, command:{command}, params:{String.Join(" ", parameters)}");
+
+                    client.LocalUser.SendNotice(defaultReplyTarget, "No admin permissions!");
                 }
                 catch (Exception ex)
                 {
@@ -443,57 +449,69 @@ public abstract partial class IRCBot : IDisposable
         OnChannelMessageReceived(channel, e);
     }
 
-    /****************
-	*  Exceptions  *
-	****************/
-    
-    public class InvalidCommandParametersException : Exception
-    {
-        public InvalidCommandParametersException(int minParameters, int? maxParameters = null)
-            : base()
-        {
-            Debug.Assert(minParameters >= 0,
-                "minParameters must be at least zero.");
-            Debug.Assert(maxParameters == null || maxParameters >= minParameters,
-                "maxParameters must be at least minParameters.");
-
-            this.MinParameters = minParameters;
-            this.MaxParameters = maxParameters ?? minParameters;
-        }
-
-        public int MinParameters
-        {
-            get;
-            private set;
-        }
-
-        public int MaxParameters
-        {
-            get;
-            private set;
-        }
-
-        public override string Message
-        {
-            get
-            {
-                throw new NotSupportedException();
-            }
-        }
-
-        public string GetMessage(string command)
-        {
-            if (this.MinParameters == 0 && this.MaxParameters == 0)
-                return string.Format("Command {0} takes no arguments.", command);
-            else if (this.MinParameters == this.MaxParameters)
-                return string.Format("Command {0} takes {1} arguments.", command,
-                    this.MinParameters);
-            else
-                return string.Format("Command {0} takes {1} to {2} arguments.", command,
-                    this.MinParameters, this.MaxParameters);
-        }
-    }
 
     protected delegate void ChatCommandProcessor(IrcClient client, IIrcMessageSource source,
         IList<IIrcMessageTarget> targets, string command, IList<string> parameters);
+}
+
+/****************
+*  Exceptions  *
+****************/
+
+public class UserNotAdminException : Exception
+{
+	public UserNotAdminException() { }
+	public UserNotAdminException(string message) : base(message) { }
+	public UserNotAdminException(string message, Exception inner) : base(message, inner) { }
+	protected UserNotAdminException(
+		System.Runtime.Serialization.SerializationInfo info,
+		System.Runtime.Serialization.StreamingContext context)
+			: base(info, context) { }
+}
+
+public class InvalidCommandParametersException : Exception
+{
+    public InvalidCommandParametersException(int minParameters, int? maxParameters = null)
+        : base()
+    {
+        Debug.Assert(minParameters >= 0,
+            "minParameters must be at least zero.");
+        Debug.Assert(maxParameters == null || maxParameters >= minParameters,
+            "maxParameters must be at least minParameters.");
+
+        this.MinParameters = minParameters;
+        this.MaxParameters = maxParameters ?? minParameters;
+    }
+
+    public int MinParameters
+    {
+        get;
+        private set;
+    }
+
+    public int MaxParameters
+    {
+        get;
+        private set;
+    }
+
+    public override string Message
+    {
+        get
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    public string GetMessage(string command)
+    {
+        if (this.MinParameters == 0 && this.MaxParameters == 0)
+            return string.Format("Command {0} takes no arguments.", command);
+        else if (this.MinParameters == this.MaxParameters)
+            return string.Format("Command {0} takes {1} arguments.", command,
+                this.MinParameters);
+        else
+            return string.Format("Command {0} takes {1} to {2} arguments.", command,
+                this.MinParameters, this.MaxParameters);
+    }
 }
