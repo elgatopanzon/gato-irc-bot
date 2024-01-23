@@ -232,7 +232,7 @@ public abstract partial class IRCBot : IDisposable
     protected virtual void OnChannelUserJoined(IrcChannel channel, IrcChannelUserEventArgs e) { }
     protected virtual void OnChannelUserLeft(IrcChannel channel, IrcChannelUserEventArgs e) { }
     protected virtual void OnChannelNoticeReceived(IrcChannel channel, IrcMessageEventArgs e) { }
-    protected virtual void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e) { }
+    protected virtual void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e, bool isBotHighlight, string textHighlightStripped) { }
 
 	/**************************
 	*  Bot commands methods  *
@@ -477,7 +477,7 @@ public abstract partial class IRCBot : IDisposable
                 return;
         }
 
-        OnChannelMessageReceived(channel, e);
+        OnChannelMessageReceived(channel, e, IsBotHighlight(channel.Client, e.Text), StripBotHighlight(channel.Client, e.Text));
     }
 
 

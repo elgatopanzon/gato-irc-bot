@@ -43,5 +43,5 @@ public partial class Gato : IRCBotBase
     protected override void OnChannelUserJoined(IrcChannel channel, IrcChannelUserEventArgs e) { }
     protected override void OnChannelUserLeft(IrcChannel channel, IrcChannelUserEventArgs e) { }
     protected override void OnChannelNoticeReceived(IrcChannel channel, IrcMessageEventArgs e) { }
-    protected override void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e) { }
+    protected override void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e, bool isBotHighlight, string textHighlightStripped) { }
 }
