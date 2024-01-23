@@ -222,17 +222,17 @@ public abstract partial class IRCBot : IDisposable
 	*  IRC event methods  *
 	***********************/
     // override methods to implement functionality
-    protected virtual void OnClientConnect(IrcClient client) { }
-    protected virtual void OnClientDisconnect(IrcClient client) { }
-    protected virtual void OnClientRegistered(IrcClient client) { }
-    protected virtual void OnLocalUserJoinedChannel(IrcLocalUser localUser, IrcChannelEventArgs e) { }
-    protected virtual void OnLocalUserLeftChannel(IrcLocalUser localUser, IrcChannelEventArgs e) { }
-    protected virtual void OnLocalUserNoticeReceived(IrcLocalUser localUser, IrcMessageEventArgs e) { }
-    protected virtual void OnLocalUserMessageReceived(IrcLocalUser localUser, IrcMessageEventArgs e) { }
-    protected virtual void OnChannelUserJoined(IrcChannel channel, IrcChannelUserEventArgs e) { }
-    protected virtual void OnChannelUserLeft(IrcChannel channel, IrcChannelUserEventArgs e) { }
-    protected virtual void OnChannelNoticeReceived(IrcChannel channel, IrcMessageEventArgs e) { }
-    protected virtual void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e, bool isBotHighlight, string textHighlightStripped) { }
+    protected virtual void OnClientConnect(IrcClient client, string networkName) { }
+    protected virtual void OnClientDisconnect(IrcClient client, string networkName) { }
+    protected virtual void OnClientRegistered(IrcClient client, string networkName) { }
+    protected virtual void OnLocalUserJoinedChannel(IrcLocalUser localUser, IrcChannelEventArgs e, string networkName) { }
+    protected virtual void OnLocalUserLeftChannel(IrcLocalUser localUser, IrcChannelEventArgs e, string networkName) { }
+    protected virtual void OnLocalUserNoticeReceived(IrcLocalUser localUser, IrcMessageEventArgs e, string networkName) { }
+    protected virtual void OnLocalUserMessageReceived(IrcLocalUser localUser, IrcMessageEventArgs e, string networkName) { }
+    protected virtual void OnChannelUserJoined(IrcChannel channel, IrcChannelUserEventArgs e, string networkName) { }
+    protected virtual void OnChannelUserLeft(IrcChannel channel, IrcChannelUserEventArgs e, string networkName) { }
+    protected virtual void OnChannelNoticeReceived(IrcChannel channel, IrcMessageEventArgs e, string networkName) { }
+    protected virtual void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e, string networkName, bool isBotHighlight, string textHighlightStripped) { }
 
 	/**************************
 	*  Bot commands methods  *
@@ -266,8 +266,6 @@ public abstract partial class IRCBot : IDisposable
 
         if (_ircBotConfig.CommandsRequireHighlight && !IsBotHighlight(client, line))
         {
-			LoggerManager.LogDebug("Command without highlight ignored", "", "command", line);
-
 			canReadCommand = false;
         }
 
@@ -356,48 +354,58 @@ public abstract partial class IRCBot : IDisposable
     {
         var client = (IrcClient) sender;
 
-        LoggerManager.LogDebug("Client connected", "", "network", _ircClients.FirstOrDefault(x => x.Value == client).Key);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == client).Key;
 
-        OnClientConnect(client);
+        LoggerManager.LogDebug("Client connected", networkName, "network", networkName);
+
+        OnClientConnect(client, networkName);
     }
 
     private void _On_Irc_Disconnected(object sender, EventArgs e)
     {
         var client = (IrcClient) sender;
 
-        LoggerManager.LogDebug("Client disconnected", "", "network", _ircClients.FirstOrDefault(x => x.Value == client).Key);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == client).Key;
 
-        OnClientDisconnect(client);
+        LoggerManager.LogDebug("Client disconnected", networkName, "network", networkName);
+
+        OnClientDisconnect(client, networkName);
     }
 
     private void _On_Irc_Registered(object sender, EventArgs e)
     {
         var client = (IrcClient) sender;
 
-        LoggerManager.LogDebug("Client registered", "", "network", _ircClients.FirstOrDefault(x => x.Value == client).Key);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == client).Key;
+
+        LoggerManager.LogDebug("Client registered", networkName, "network", networkName);
 
         client.LocalUser.NoticeReceived += _On_Irc_LocalUser_NoticeReceived;
         client.LocalUser.MessageReceived += _On_Irc_LocalUser_MessageReceived;
         client.LocalUser.JoinedChannel += _On_Irc_LocalUser_JoinedChannel;
         client.LocalUser.LeftChannel += _On_Irc_LocalUser_LeftChannel;
 
-        OnClientRegistered(client);
+        OnClientRegistered(client, networkName);
     }
 
     private void _On_Irc_LocalUser_NoticeReceived(object sender, IrcMessageEventArgs e)
     {
         var localUser = (IrcLocalUser) sender;
 
-        LoggerManager.LogDebug("Notice received", "", $"sender:{e.Source.Name}", e.Text);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == localUser.Client).Key;
 
-        OnLocalUserNoticeReceived(localUser, e);
+        LoggerManager.LogDebug("Notice received", networkName, $"sender:{e.Source.Name}", e.Text);
+
+        OnLocalUserNoticeReceived(localUser, e, networkName);
     }
 
     private void _On_Irc_LocalUser_MessageReceived(object sender, IrcMessageEventArgs e)
     {
         var localUser = (IrcLocalUser) sender;
 
-        LoggerManager.LogDebug("Message received", "", $"sender:{e.Source.Name}", e.Text);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == localUser.Client).Key;
+
+        LoggerManager.LogDebug("Message received", networkName, $"sender:{e.Source.Name}", e.Text);
 
         if (e.Source is IrcUser)
         {
@@ -406,69 +414,81 @@ public abstract partial class IRCBot : IDisposable
                 return;
         }
 
-        OnLocalUserMessageReceived(localUser, e);
+        OnLocalUserMessageReceived(localUser, e, networkName);
     }
 
     private void _On_Irc_LocalUser_JoinedChannel(object sender, IrcChannelEventArgs e)
     {
         var localUser = (IrcLocalUser)sender;
 
-        LoggerManager.LogDebug("Joined channel", "", $"nick:{localUser.NickName}", e.Channel.Name);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == localUser.Client).Key;
+
+        LoggerManager.LogDebug("Joined channel", networkName, $"nick:{localUser.NickName}", e.Channel.Name);
 
         e.Channel.UserJoined += _On_Irc_Channel_UserJoined;
         e.Channel.UserLeft += _On_Irc_Channel_UserLeft;
         e.Channel.MessageReceived += _On_Irc_Channel_MessageReceived;
         e.Channel.NoticeReceived += _On_Irc_Channel_NoticeReceived;
 
-        OnLocalUserJoinedChannel(localUser, e);
+        OnLocalUserJoinedChannel(localUser, e, networkName);
     }
 
     private void _On_Irc_LocalUser_LeftChannel(object sender, IrcChannelEventArgs e)
     {
         var localUser = (IrcLocalUser)sender;
 
-        LoggerManager.LogDebug("Left channel", "", $"nick:{localUser.NickName}", e.Channel.Name);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == localUser.Client).Key;
+
+        LoggerManager.LogDebug("Left channel", networkName, $"nick:{localUser.NickName}", e.Channel.Name);
 
         e.Channel.UserJoined -= _On_Irc_Channel_UserJoined;
         e.Channel.UserLeft -= _On_Irc_Channel_UserLeft;
         e.Channel.MessageReceived -= _On_Irc_Channel_MessageReceived;
         e.Channel.NoticeReceived -= _On_Irc_Channel_NoticeReceived;
 
-        OnLocalUserLeftChannel(localUser, e);
+        OnLocalUserLeftChannel(localUser, e, networkName);
     }
 
     private void _On_Irc_Channel_UserJoined(object sender, IrcChannelUserEventArgs e)
     {
         var channel = (IrcChannel)sender;
 
-        LoggerManager.LogDebug("User joined channel", "", $"nick:{e.ChannelUser.User.NickName}", channel.Name);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == channel.Client).Key;
 
-        OnChannelUserJoined(channel, e);
+        LoggerManager.LogDebug("User joined channel", networkName, $"nick:{e.ChannelUser.User.NickName}", channel.Name);
+
+        OnChannelUserJoined(channel, e, networkName);
     }
 
     private void _On_Irc_Channel_UserLeft(object sender, IrcChannelUserEventArgs e)
     {
         var channel = (IrcChannel)sender;
 
-        LoggerManager.LogDebug("User left channel", "", $"nick:{e.ChannelUser.User.NickName}", channel.Name);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == channel.Client).Key;
 
-        OnChannelUserLeft(channel, e);
+        LoggerManager.LogDebug("User left channel", networkName, $"nick:{e.ChannelUser.User.NickName}", channel.Name);
+
+        OnChannelUserLeft(channel, e, networkName);
     }
 
     private void _On_Irc_Channel_NoticeReceived(object sender, IrcMessageEventArgs e)
     {
         var channel = (IrcChannel)sender;
 
-        LoggerManager.LogDebug("Channel notice received", "", $"channel:{channel.Name}", e.Text);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == channel.Client).Key;
 
-        OnChannelNoticeReceived(channel, e);
+        LoggerManager.LogDebug("Channel notice received", networkName, $"channel:{channel.Name}", e.Text);
+
+        OnChannelNoticeReceived(channel, e, networkName);
     }
 
     private void _On_Irc_Channel_MessageReceived(object sender, IrcMessageEventArgs e)
     {
         var channel = (IrcChannel)sender;
 
-        LoggerManager.LogDebug("Channel message received", "", $"channel:{channel.Name}", e.Text);
+        var networkName = _ircClients.FirstOrDefault(x => x.Value == channel.Client).Key;
+
+        LoggerManager.LogDebug("Channel message received", networkName, $"channel:{channel.Name}", e.Text);
 
         if (e.Source is IrcUser)
         {
@@ -477,7 +497,7 @@ public abstract partial class IRCBot : IDisposable
                 return;
         }
 
-        OnChannelMessageReceived(channel, e, IsBotHighlight(channel.Client, e.Text), StripBotHighlight(channel.Client, e.Text));
+        OnChannelMessageReceived(channel, e, networkName, IsBotHighlight(channel.Client, e.Text), StripBotHighlight(channel.Client, e.Text));
     }
 
 
