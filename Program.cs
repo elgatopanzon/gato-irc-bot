@@ -49,7 +49,10 @@ class Program
 		var ircConfig = ServiceRegistry.Get<ConfigManager>().Get<IRCConfig>();
 		LoggerManager.LogDebug("IRC config", "", "ircConfig", ircConfig);
 
-		IRCBot ircBot = new IRCBot(ircConfig);
+		var ircBotConfig = ServiceRegistry.Get<ConfigManager>().Get<IRCBotConfig>();
+		LoggerManager.LogDebug("IRC bot config", "", "ircBotConfig", ircBotConfig);
+
+		Gato ircBot = new Gato(ircConfig, ircBotConfig);
 		ircBot.Connect();
 
 		// wait forever until we close the program

@@ -15,30 +15,61 @@ using GodotEGP.Logging;
 using GodotEGP.Service;
 using GodotEGP.Event.Events;
 using GodotEGP.Config;
+using GodotEGP.CLI;
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Diagnostics;
+
 using IrcDotNet;
 
-public partial class IRCBot : IDisposable
+public abstract partial class IRCBot : IDisposable
 {
 	private bool _isDisposed { get; set; }
 
 	// holds bot's irc config
 	private IRCConfig _ircConfig { get; set; }
+	public IRCConfig IrcConfig {
+		get {
+			return _ircConfig;
+		}
+	}
+
+	private IRCBotConfig _ircBotConfig { get; set; }
+	public IRCBotConfig IrcBotConfig {
+		get {
+			return _ircBotConfig;
+		}
+	}
 
 	// collection of clients (server-name => client-object)
     private Dictionary<string, IrcClient> _ircClients;
 
-	public IRCBot(IRCConfig ircConfig)
+    // prefix used for commands
+    private string _commandPrefix { get; set; } = "!";
+    private static readonly Regex commandPartsSplitRegex = new Regex("(?<! /.*) ", RegexOptions.None);
+
+	// CLI interface as command processor
+	private IRCBotCommandLineInterface _cli;
+	protected IRCBotCommandLineInterface CLI
+	{
+		get { return _cli; }
+		set { _cli = value; }
+	}
+
+	public IRCBot(IRCConfig ircConfig, IRCBotConfig ircBotConfig)
 	{
 		_ircConfig = ircConfig;
+		_ircBotConfig = ircBotConfig;
 
 		LoggerManager.LogDebug("Creating bot instance with config", "", "config", _ircConfig);
 
 		// holds a list of clients (one for each network)
 		_ircClients = new();
+
+        InitializeCommandLineInterface();
 	}
 
 	/*****************
@@ -203,6 +234,82 @@ public partial class IRCBot : IDisposable
     protected virtual void OnChannelNoticeReceived(IrcChannel channel, IrcMessageEventArgs e) { }
     protected virtual void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e) { }
 
+	/**************************
+	*  Bot commands methods  *
+	**************************/
+	
+    private bool ReadChatCommand(IrcClient client, IrcMessageEventArgs eventArgs)
+    {
+        // Check if given message represents chat command.
+        var line = eventArgs.Text;
+        if (line.Length > 1 && line.StartsWith(_commandPrefix))
+        {
+            // Process command.
+            var parts = commandPartsSplitRegex.Split(line.Substring(1)).Select(p => p.TrimStart('/')).ToArray();
+            var command = parts.First();
+            var parameters = parts.Skip(1).ToArray();
+            ReadChatCommand(client, eventArgs.Source, eventArgs.Targets, command, parameters);
+            return true;
+        }
+        return false;
+    }
+
+    private void ReadChatCommand(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets,
+        string command, string[] parameters)
+    {
+        var defaultReplyTarget = GetDefaultReplyTarget(client, source, targets);
+
+        // ChatCommandProcessor processor;
+        if (CLI.IsCommand(command))
+        {
+            System.Threading.Tasks.Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    // processor(client, source, targets, command, parameters);
+                    // setting CLI args
+                    CLI.SetArgs(new string[] { command }.Concat(parameters).ToArray());
+
+                    var commandFunc = CLI.GetCommandFunc(command);
+
+                    LoggerManager.LogDebug("Executing chat command", "", "command", parameters);
+
+                    CLI.ExecuteBotCommandFunction(commandFunc, command, CLI.GetArgumentValues(command), client, source, targets);
+                }
+                catch (InvalidCommandParametersException exInvalidCommandParameters)
+                {
+                    client.LocalUser.SendNotice(defaultReplyTarget,
+                        exInvalidCommandParameters.GetMessage(command));
+                }
+                catch (Exception ex)
+                {
+                    if (source is IIrcMessageTarget)
+                    {
+                        client.LocalUser.SendNotice(defaultReplyTarget, $"Error processing '{command}' command: {ex.Message}");
+                    }
+                }
+            }, System.Threading.Tasks.TaskCreationOptions.LongRunning);
+        }
+        else
+        {
+            if (source is IIrcMessageTarget)
+            {
+                client.LocalUser.SendNotice(defaultReplyTarget, $"Command '{command}' not recognized.");
+            }
+        }
+    }
+
+    public IList<IIrcMessageTarget> GetDefaultReplyTarget(IrcClient client, IIrcMessageSource source,
+        IList<IIrcMessageTarget> targets)
+    {
+        if (targets.Contains(client.LocalUser) && source is IIrcMessageTarget)
+            return new[] { (IIrcMessageTarget)source };
+        else
+            return targets;
+    }
+
+	protected abstract void InitializeCommandLineInterface();
+
 
     /**********************
 	*  Callback methods  *
@@ -258,9 +365,8 @@ public partial class IRCBot : IDisposable
         if (e.Source is IrcUser)
         {
             // Read message and process if it is chat command.
-            // TODO: implement method to process a command
-            // if (ReadChatCommand(localUser.Client, e))
-            //     return;
+            if (ReadChatCommand(localUser.Client, e))
+                return;
         }
 
         OnLocalUserMessageReceived(localUser, e);
@@ -330,11 +436,64 @@ public partial class IRCBot : IDisposable
         if (e.Source is IrcUser)
         {
             // Read message and process if it is chat command.
-            // TODO: implement method to process a command
-            // if (ReadChatCommand(channel.Client, e))
-            //     return;
+            if (ReadChatCommand(channel.Client, e))
+                return;
         }
 
         OnChannelMessageReceived(channel, e);
     }
+
+    /****************
+	*  Exceptions  *
+	****************/
+    
+    public class InvalidCommandParametersException : Exception
+    {
+        public InvalidCommandParametersException(int minParameters, int? maxParameters = null)
+            : base()
+        {
+            Debug.Assert(minParameters >= 0,
+                "minParameters must be at least zero.");
+            Debug.Assert(maxParameters == null || maxParameters >= minParameters,
+                "maxParameters must be at least minParameters.");
+
+            this.MinParameters = minParameters;
+            this.MaxParameters = maxParameters ?? minParameters;
+        }
+
+        public int MinParameters
+        {
+            get;
+            private set;
+        }
+
+        public int MaxParameters
+        {
+            get;
+            private set;
+        }
+
+        public override string Message
+        {
+            get
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        public string GetMessage(string command)
+        {
+            if (this.MinParameters == 0 && this.MaxParameters == 0)
+                return string.Format("Command {0} takes no arguments.", command);
+            else if (this.MinParameters == this.MaxParameters)
+                return string.Format("Command {0} takes {1} arguments.", command,
+                    this.MinParameters);
+            else
+                return string.Format("Command {0} takes {1} to {2} arguments.", command,
+                    this.MinParameters, this.MaxParameters);
+        }
+    }
+
+    protected delegate void ChatCommandProcessor(IrcClient client, IIrcMessageSource source,
+        IList<IIrcMessageTarget> targets, string command, IList<string> parameters);
 }
