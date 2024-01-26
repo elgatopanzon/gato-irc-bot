@@ -18,12 +18,20 @@ using IrcDotNet;
 
 public partial class ChatMessageHistory : VObject
 {
-	internal readonly VValue<string> _sourceId;
+	internal readonly VValue<string> _sourceName;
 
-	public string SourceId
+	public string SourceName
 	{
-		get { return _sourceId.Value; }
-		set { _sourceId.Value = value; }
+		get { return _sourceName.Value; }
+		set { _sourceName.Value = value; }
+	}
+
+	internal readonly VValue<string> _networkName;
+
+	public string NetworkName
+	{
+		get { return _networkName.Value; }
+		set { _networkName.Value = value; }
 	}
 
 	internal readonly VValue<bool> _isChannel;
@@ -61,7 +69,11 @@ public partial class ChatMessageHistory : VObject
 
 	public ChatMessageHistory()
 	{
-		_sourceId = AddValidatedValue<string>(this)
+		_sourceName = AddValidatedValue<string>(this)
+		    .Default("")
+		    .ChangeEventsEnabled();
+
+		_networkName = AddValidatedValue<string>(this)
 		    .Default("")
 		    .ChangeEventsEnabled();
 
