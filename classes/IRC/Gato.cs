@@ -471,7 +471,7 @@ public partial class Gato : IRCBotBase
     {
         if (CanTalkOnNetworkSource(requestHolder.SourceHistory.NetworkName, requestHolder.SourceHistory.SourceName))
         {
-        	foreach (var msg in message.Trim().SplitOnLength(400))
+        	foreach (var msg in message.Trim().SplitOnLength(350))
         	{
         		requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, msg);
         	}
