@@ -91,5 +91,15 @@ public partial class ChatMessageHistory : VObject
 		    .Default(new List<ChatMessage>())
 		    .ChangeEventsEnabled();
 	}
+
+	public List<ChatMessage> GetLastMessages(int count = 0)
+	{
+		if (count == 0)
+		{
+			return ChatMessages;
+		}
+
+		return ChatMessages.Skip(Math.Max(0, ChatMessages.Count() - count)).ToList();
+	}
 }
 

@@ -7,14 +7,18 @@
 namespace GatoIRCBot.IRC;
 
 using GatoIRCBot.Config;
+using GatoIRCBot.Service;
+using GatoIRCBot.Event;
 
 using Godot;
+using GodotEGP;
 using GodotEGP.Objects.Extensions;
 using GodotEGP.Objects.Validated;
 using GodotEGP.Logging;
 using GodotEGP.Service;
 using GodotEGP.Event.Events;
 using GodotEGP.Config;
+using GodotEGP.AI.OpenAI;
 
 using IrcDotNet;
 using Newtonsoft.Json;
@@ -23,20 +27,31 @@ using System.Text.RegularExpressions;
 
 public partial class Gato : IRCBotBase
 {
+	// main config
+	private GatoConfig _config;
+
 	// hold ChatHistory instances per-client, per-source
 	private Dictionary<string, Dictionary<string, ChatMessageHistory>> _messageHistory { get; set; } = new();
 
 	// base path to save chat history json files
 	private string _chatMessagesBasePath { get; set; } = "user://ChatMessages";
 
+	// openAI service 
+	private OpenAIService _openAiService;
+
+	// openAI ongoing requests map
+	private Dictionary<OpenAiRequest, ChatCompletionRequestHolder> _ongoingOpenAIRequests { get; set; } = new();
+
 	public Gato(IRCConfig config, IRCBotConfig botConfig) : base(config, botConfig)
 	{
+		_config = ServiceRegistry.Get<ConfigManager>().Get<GatoConfig>();
 
+		_openAiService = ServiceRegistry.Get<OpenAIService>();
 	}
 
     protected override void InitializeCommandLineInterface()
     {
-    	CLI = new IRCBotCommandLineInterface(this);
+    	CLI = new GatoBotCommandLineInterface(this);
     }
 
     /********************************
@@ -70,10 +85,11 @@ public partial class Gato : IRCBotBase
 		if (!clientHistory.TryGetValue(sourceName, out var sourceHistory))
 		{
 			sourceHistory = new() {
-				SourceId = sourceName,
-						 IsChannel = isChannel,
-						 Source = source,
-						 Targets = targets
+				SourceName = sourceName,
+				NetworkName = networkName,
+				IsChannel = isChannel,
+				Source = source,
+				Targets = targets
 			};
 
 			// load any chat history into the existing instance
@@ -83,7 +99,7 @@ public partial class Gato : IRCBotBase
 
 			clientHistory.Add(sourceName, sourceHistory);
 
-			LoggerManager.LogDebug("Initialised history for source", networkName, "source", sourceHistory.SourceId);
+			LoggerManager.LogDebug("Initialised history for source", networkName, "source", sourceHistory.SourceName);
 			LoggerManager.LogDebug("", networkName, "existingMessages", sourceHistory.ChatMessages.Count);
 		}
 
@@ -200,10 +216,119 @@ public partial class Gato : IRCBotBase
     	}
     }
 
+
+    /********************
+	*  OpenAI methods  *
+	********************/
+    public void QueueOpenAIChatCompletionsRequest(IrcClient client, IList<IIrcMessageTarget> replyTarget, ChatMessageHistory sourceHistory, ChatMessage latestMessage)
+    {
+    	LoggerManager.LogDebug("Queuing OpenAI chat request", sourceHistory.NetworkName, "sourceName", sourceHistory.SourceName);
+    	LoggerManager.LogDebug("", "", "chatMessage", latestMessage);
+
+    	// get chat history formatted as ChatCompletionsRequest
+    	ChatCompletionRequest r = GetChatMessageHistoryAsChatCompletionsRequest(sourceHistory);
+
+    	LoggerManager.LogDebug("ChatCompletionsRequest", "", "r", r);
+
+		// queue the request and subscribe to events
+    	var requestObj = _openAiService.QueueChatCompletion(r);
+
+    	requestObj.SubscribeOwner<OpenAIChatCompletionLine>(_On_OpenAI_ChatCompletionLine, isHighPriority:true);
+    	requestObj.SubscribeOwner<OpenAIChatCompletionError>(_On_OpenAI_ChatCompletionError, isHighPriority:true);
+    	requestObj.SubscribeOwner<OpenAIChatCompletionResult>(_On_OpenAI_ChatCompletionResult, isHighPriority:true);
+
+    	var requestHolder = new ChatCompletionRequestHolder() {
+			RequestObject = requestObj,
+			RequestOriginal = r,
+			IrcClient = client,
+			SourceHistory = sourceHistory,
+			ReplyTarget = replyTarget,
+    	};
+
+    	_ongoingOpenAIRequests.Add(requestObj, requestHolder);
+    }
+
+    public ChatCompletionRequest GetChatMessageHistoryAsChatCompletionsRequest(ChatMessageHistory sourceHistory)
+    {
+    	ChatCompletionRequest r = new();
+    	r.Messages = new();
+    	r.Stream = true;
+    	r.Model = _config.ModelProfile.Inference.Model;
+    	r.MaxTokens = _config.ModelProfile.Inference.MaxTokens;
+
+    	// fill up a list in reverse counting the token size
+    	int currentTokenSize = 0;
+
+    	List<ChatMessage> messages = new();
+
+		// inject some system prompt information
+    	var systemPrompts = _config.SystemPrompts.DeepCopy();
+    	systemPrompts.Add($"The date is {DateTime.Today}${IrcConfig.Client.Nickname}");
+    	systemPrompts.Add($"Your name is {IrcConfig.Client.Nickname}");
+    	systemPrompts.Add($"You are talking on the {sourceHistory.NetworkName} IRC network to {sourceHistory.SourceName}");
+
+
+    	// add system prompts counts
+    	foreach (var systemPrompt in systemPrompts)
+    	{
+    		currentTokenSize += GetFakeTokenCount(systemPrompt);
+    	}
+
+    	// create message objects for each history message in reverse until we
+    	// hit the token limit
+    	foreach (var message in sourceHistory.ChatMessages.AsEnumerable().Reverse().ToList())
+    	{
+    		if (message.Content == null)
+    		{
+    			continue;
+    		}
+    		int messageTokenSize = GetFakeTokenCount(message.Content);
+
+			if ((currentTokenSize + messageTokenSize) + _config.ModelProfile.Inference.MaxTokens <= _config.ModelProfile.HistoryTokenSize)
+			{
+    			r.Messages.Add(new() {
+    				Role = ((message.Nickname == IrcConfig.Client.Nickname) ? "assistant" : "user"),
+    				Name = message.Nickname,
+					Content = message.Content,
+    				});
+
+    			currentTokenSize += messageTokenSize;
+			}
+			else
+			{
+				LoggerManager.LogDebug("History token limit hit", "", "limit", _config.ModelProfile.HistoryTokenSize);
+
+				break;
+			}
+    	}
+
+    	LoggerManager.LogDebug("History current token limit", "", "tokens", currentTokenSize);
+
+    	foreach (var systemPrompt in systemPrompts.AsEnumerable().Reverse())
+    	{
+			r.Messages.Add(new() {
+				Content = systemPrompt,
+				Role = "system",
+				});
+    	}
+
+		// re-reverse messages
+    	r.Messages.Reverse();
+
+    	return r;
+    }
+
+	// fake Tokenize method using the 100,000 words = 75,000 tokens estimate
+	public int GetFakeTokenCount(string content)
+	{
+		int c = Math.Max(1, (content.Split(" ").Length));
+		return Convert.ToInt32(c * 0.75);
+	}
+
     /*****************************
 	 *  Message process methods  *
 	 *****************************/
-    public void ProcessIncomingMessage(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets, string networkName, string line, bool isChannel = false, bool isHighlight = false)
+    public async void ProcessIncomingMessage(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets, string networkName, string line, bool isChannel = false, bool isHighlight = false)
     {
     	// obtain the source history object for this client-source
 		var sourceHistory = InitMessageHistoryForClientSource(client, source, targets, networkName, isChannel);
@@ -222,10 +347,145 @@ public partial class Gato : IRCBotBase
 
 		// bot highlights make the bot trigger a message to the LLM, and a
 		// response
-		if (isHighlight)
+		if (isHighlight || !IsNetworkSourceHighlightRequired(networkName, sourceHistory.SourceName))
 		{
-			LoggerManager.LogTrace("TODO: process message here");
+			var defaultReplyTarget = GetDefaultReplyTarget(client, source, targets);
+
+			QueueOpenAIChatCompletionsRequest(client, defaultReplyTarget, sourceHistory,  chatMessage);
 		}
+    }
+
+    public bool IsNetworkSourceHighlightRequired(string networkName, string sourceName)
+    {
+    	bool highlightRequired = IrcBotConfig.CommandsRequireHighlight;
+
+    	if (_config.ReplyWithoutHighlight.TryGetValue(networkName, out var networkConfig))
+    	{
+    		if (networkConfig.Contains(sourceName))
+    		{
+    			highlightRequired = false;
+    		}
+    	}
+
+    	return highlightRequired;
+    }
+
+    public ChatCompletionRequestHolder GetRequestHolder(OpenAiRequest requestObj)
+    {
+    	if (_ongoingOpenAIRequests.TryGetValue(requestObj, out var obj))
+    	{
+    		return obj;
+    	}
+
+    	return null;
+    }
+
+    public void ProcessChatCompletionLineEvent(OpenAIChatCompletionLine e)
+    {
+    	// find the request holder object
+    	var requestHolder = GetRequestHolder((e.Owner as OpenAiRequest));
+
+    	if (requestHolder == null)
+    	{
+    		LoggerManager.LogError("Failed to get request holder", "");
+    		return;
+    	}
+
+    	LoggerManager.LogDebug("Found request holder", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}");
+
+		// if streaming lines is enabled, write the response line + the
+		// configured TypingString
+    	if (_config.StreamingLines)
+    	{
+    		string replyLine = e.Text;
+
+    		if (!e.IsLast)
+    		{
+    			replyLine += _config.IsTypingSuffix;
+    		}
+
+        	SendIrcMessage(requestHolder, replyLine);
+    	}
+    }
+
+    public void SendIrcMessage(ChatCompletionRequestHolder requestHolder, string message)
+    {
+        if (CanTalkOnNetworkSource(requestHolder.SourceHistory.NetworkName, requestHolder.SourceHistory.SourceName))
+        {
+        	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, message);
+        }
+
+    	LoggerManager.LogDebug("Talk not enabled for source", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}, response:{message}");
+    }
+
+    public bool CanTalkOnNetworkSource(string networkName, string sourceName)
+    {
+        bool talkEnabled = true;
+
+		if (IrcConfig.Networks.TryGetValue(networkName, out var networkConfig))
+		{
+			if (networkConfig.Channels.TryGetValue(sourceName, out var channelConfig))
+			{
+				talkEnabled = channelConfig.TalkEnabled;
+			}
+		}
+
+		return talkEnabled;
+    }
+
+    /**********************
+	*  OpenAI callbacks  *
+	**********************/
+    public void _On_OpenAI_ChatCompletionLine(OpenAIChatCompletionLine e)
+    {
+    	if (e.IsLast)
+    	{
+    		LoggerManager.LogDebug("Chat completion line last", "", "line", e.Text);
+    	}
+    	else
+    	{
+    		LoggerManager.LogDebug("Chat completion line", "", "line", e.Text);
+    	}
+
+		ProcessChatCompletionLineEvent(e);
+    }
+
+    public void _On_OpenAI_ChatCompletionError(OpenAIChatCompletionError e)
+    {
+    	LoggerManager.LogDebug("Chat completion error", "", "error", e.Error);
+    }
+
+    public void _On_OpenAI_ChatCompletionResult(OpenAIChatCompletionResult e)
+    {
+    	LoggerManager.LogDebug("Chat completion result", "", "result", e.Result);
+
+    	var requestHolder = GetRequestHolder((e.Owner as OpenAiRequest));
+
+    	// save the full response into the chat history
+    	ChatMessage chatMessage = new() {
+			Content = e.Result.Choices[0].Message.GetContent(),
+			Nickname = IrcConfig.Client.Nickname,
+    	};
+
+		SaveChatMessage(requestHolder.SourceHistory, chatMessage);
+
+		// if we have streaming lines disabled, we need to send the full
+		// response
+    	if (!_config.StreamingLines)
+    	{
+
+    		if (requestHolder == null)
+    		{
+    			LoggerManager.LogError("Failed to get request holder", "", "result", e.Result);
+    			return;
+    		}
+
+    		LoggerManager.LogDebug("Found request holder", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}");
+
+    		string replyLine = e.Result.Choices[0].Message.GetContent();
+
+        	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, replyLine);
+    	}
     }
 
 	/*************************
@@ -242,7 +502,7 @@ public partial class Gato : IRCBotBase
     protected override void OnLocalUserNoticeReceived(IrcLocalUser localUser, IrcMessageEventArgs e, string networkName) { }
     protected override void OnLocalUserMessageReceived(IrcLocalUser localUser, IrcMessageEventArgs e, string networkName)
     {
-		ProcessIncomingMessage(localUser.Client, localUser, e.Targets, networkName, e.Text, isChannel:false, isHighlight:false);
+		ProcessIncomingMessage(localUser.Client, e.Source, e.Targets, networkName, e.Text, isChannel:false, isHighlight:true);
     }
     protected override void OnChannelUserJoined(IrcChannel channel, IrcChannelUserEventArgs e, string networkName) { }
     protected override void OnChannelUserLeft(IrcChannel channel, IrcChannelUserEventArgs e, string networkName) { }
@@ -251,4 +511,13 @@ public partial class Gato : IRCBotBase
     {
 		ProcessIncomingMessage(channel.Client, e.Source, e.Targets, networkName, textHighlightStripped, isChannel:true, isHighlight:isBotHighlight);
     }
+}
+
+public partial class ChatCompletionRequestHolder
+{
+	public OpenAiRequest RequestObject { get; set; }
+	public ChatCompletionRequest RequestOriginal { get; set; }
+	public IrcClient IrcClient { get; set; }
+	public IList<IIrcMessageTarget> ReplyTarget { get; set; }
+	public ChatMessageHistory SourceHistory { get; set; }
 }

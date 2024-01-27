@@ -187,7 +187,7 @@ public abstract partial class IRCBot : IDisposable
         // join configured channels
 		foreach (var channel in networkConfig.Channels)
 		{
-			if (channel.Value.Enabled)
+			if (channel.Value.JoinEnabled)
 			{
 				client.Channels.Join(channel.Key);
 			}
@@ -255,7 +255,7 @@ public abstract partial class IRCBot : IDisposable
 		}
 	}
 	
-    private bool ReadChatCommand(IrcClient client, IrcMessageEventArgs eventArgs)
+    private bool ReadChatCommand(IrcClient client, IrcMessageEventArgs eventArgs, bool isChannel = false)
     {
         // Check if given message represents chat command.
         var line = eventArgs.Text;
@@ -264,7 +264,7 @@ public abstract partial class IRCBot : IDisposable
 		// to highlight only
         bool canReadCommand = true;
 
-        if (_ircBotConfig.CommandsRequireHighlight && !IsBotHighlight(client, line))
+        if (_ircBotConfig.CommandsRequireHighlight && (!IsBotHighlight(client, line) && isChannel))
         {
 			canReadCommand = false;
         }
@@ -410,7 +410,7 @@ public abstract partial class IRCBot : IDisposable
         if (e.Source is IrcUser)
         {
             // Read message and process if it is chat command.
-            if (ReadChatCommand(localUser.Client, e))
+            if (ReadChatCommand(localUser.Client, e, isChannel:false))
                 return;
         }
 
@@ -493,7 +493,7 @@ public abstract partial class IRCBot : IDisposable
         if (e.Source is IrcUser)
         {
             // Read message and process if it is chat command.
-            if (ReadChatCommand(channel.Client, e))
+            if (ReadChatCommand(channel.Client, e, isChannel:true))
                 return;
         }
 

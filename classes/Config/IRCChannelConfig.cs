@@ -16,17 +16,29 @@ using GodotEGP.Config;
 
 public partial class IRCChannelConfig : VConfig
 {
-	internal readonly VValue<bool> _enabled;
+	internal readonly VValue<bool> _joinEnabled;
 
-	public bool Enabled
+	public bool JoinEnabled
 	{
-		get { return _enabled.Value; }
-		set { _enabled.Value = value; }
+		get { return _joinEnabled.Value; }
+		set { _joinEnabled.Value = value; }
+	}
+
+	internal readonly VValue<bool> _talkEnabled;
+
+	public bool TalkEnabled
+	{
+		get { return _talkEnabled.Value; }
+		set { _talkEnabled.Value = value; }
 	}
 
 	public IRCChannelConfig()
 	{
-		_enabled = AddValidatedValue<bool>(this)
+		_joinEnabled = AddValidatedValue<bool>(this)
+		    .Default(true)
+		    .ChangeEventsEnabled();
+
+		_talkEnabled = AddValidatedValue<bool>(this)
 		    .Default(true)
 		    .ChangeEventsEnabled();
 	}
