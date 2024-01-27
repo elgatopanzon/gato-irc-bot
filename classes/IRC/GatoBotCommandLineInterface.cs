@@ -42,6 +42,7 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		_commandArgs["editmsg"].Add(("msg", "MESSAGE", "New message content", false));
 
 		_commands["reloadhistory"] = (BotCommandReloadHistory, "Reload the chat history from file", true);
+		_commands["erasehistory"] = (BotCommandEraseHistory, "Erase the chat history (permanent!)", true);
 	}
 
 	public async Task<int> BotCommandProfile()
@@ -143,12 +144,32 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 	{
 		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
 
-		sourceHistory.ChatMessages = new();
-		_ircBot.ReloadMessageHistoryForClientSource(_ircClient, _ircNetworkName, sourceHistory.SourceName);
+		if (sourceHistory != null)
+		{
+			sourceHistory.ChatMessages = new();
+			_ircBot.ReloadMessageHistoryForClientSource(_ircClient, _ircNetworkName, sourceHistory.SourceName);
 
-		LoggerManager.LogDebug("Cleared loaded history, will be reloaded");
+			LoggerManager.LogDebug("Cleared loaded history, will be reloaded", "", "reloadHistory", $"network:{sourceHistory.NetworkName}, source:{sourceHistory.SourceName}");
 
-		_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"History reloaded from file");
+			_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"History reloaded from file");
+		}
+
+		return 0;
+	}
+
+	public async Task<int> BotCommandEraseHistory()
+	{
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+
+		if (sourceHistory != null)
+		{
+			_ircBot.EraseMessageHistoryForClientSource(_ircClient, _ircNetworkName, sourceHistory.SourceName);
+			_ircBot.ReloadMessageHistoryForClientSource(_ircClient, _ircNetworkName, sourceHistory.SourceName);
+
+			LoggerManager.LogDebug("Erased saved chat history", "", "eraseHistory", $"network:{sourceHistory.NetworkName}, source:{sourceHistory.SourceName}");
+
+			_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"History erased");
+		}
 
 		return 0;
 	}

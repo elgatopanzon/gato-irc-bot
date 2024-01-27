@@ -124,6 +124,14 @@ public partial class Gato : IRCBotBase
 		}
     }
 
+    public void EraseMessageHistoryForClientSource(IrcClient client, string networkName, string sourceName)
+    {
+    	string chatHistoryPath = Path.Combine(ProjectSettings.GlobalizePath(_chatMessagesBasePath), networkName, sourceName, "History.log");
+
+		// backup and erase history
+		File.Move(chatHistoryPath, chatHistoryPath+$".bk-{((DateTimeOffset) DateTime.Now).ToUnixTimeSeconds()}");
+    }
+
     public ChatMessageHistory GetHistoryFromClient(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets, string networkName)
     {
     	ChatMessageHistory h = null;
