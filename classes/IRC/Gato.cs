@@ -412,7 +412,7 @@ public partial class Gato : IRCBotBase
     {
         if (CanTalkOnNetworkSource(requestHolder.SourceHistory.NetworkName, requestHolder.SourceHistory.SourceName))
         {
-        	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, message);
+        	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, message.Trim());
         }
 
     	LoggerManager.LogDebug("Talk not enabled for source", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}, response:{message}");
@@ -484,7 +484,7 @@ public partial class Gato : IRCBotBase
 
     		string replyLine = e.Result.Choices[0].Message.GetContent();
 
-        	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, replyLine);
+        	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, replyLine.Trim());
     	}
     }
 
