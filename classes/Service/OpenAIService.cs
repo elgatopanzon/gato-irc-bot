@@ -216,13 +216,13 @@ public partial class OpenAIService : Service
 			});
 	}
 
-	public string GetLastLineInString(string content)
+	public string GetLastLineInString(string content, int skipLast = 1)
 	{
 		var lines = content.Split("\n");
 
 		LoggerManager.LogDebug("Lines", "", "lines", lines);
 
-		return lines.Last(x => x.Length > 0);
+		return lines.SkipLast(skipLast).Last();
 	}
 
 	public string GetLastSentenceInString(string content)
@@ -243,7 +243,7 @@ public partial class OpenAIService : Service
 		if (req.Result.Choices.Count > 0)
 		{
 			// get the end of the string if there's no new line as the line
-			string line = GetLastLineInString(req.Result.Choices[0].Message.GetContent());
+			string line = GetLastLineInString(req.Result.Choices[0].Message.GetContent(), 0);
 			ProcessChatCompletionLine(requestObj, line, isLastLine:true);
 
 			requestObj.Emit<OpenAIChatCompletionResult>(e => e.Result = req.Result);

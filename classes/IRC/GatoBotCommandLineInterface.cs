@@ -31,6 +31,15 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		_commands["profile"] = (BotCommandProfile, "Switch currently active model profile", true);
 		_commandArgs["profile"] = new();
 		_commandArgs["profile"].Add(("profile_name", "PROFILE_ID", "Profile ID to switch to", false));
+
+		_commands["erasemsg"] = (BotCommandEraseMessage, "Erase messages from history", true);
+		_commandArgs["erasemsg"] = new();
+		_commandArgs["erasemsg"].Add(("n", "N", "Number of messages to erase", false));
+
+		_commands["editmsg"] = (BotCommandEditMessage, "Edit a chat message at position N", true);
+		_commandArgs["editmsg"] = new();
+		_commandArgs["editmsg"].Add(("n", "N", "N position from last message", false));
+		_commandArgs["editmsg"].Add(("msg", "MESSAGE", "New message content", false));
 	}
 
 	public async Task<int> BotCommandProfile()
@@ -68,6 +77,61 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 			{
 				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"Invalid model profile: '{newModelProfile}'");
 			}
+		}
+
+		return 0;
+	}
+
+	public async Task<int> BotCommandEraseMessage()
+	{
+		int eraseCount = 0;
+
+		if (_ircCommandParameters.Count > 0)
+		{
+			eraseCount = Convert.ToInt32(_ircCommandParameters[0]);
+		}
+
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+
+		if (sourceHistory != null)
+		{
+			LoggerManager.LogDebug("Erasing chat history", "", "erase", $"network:{_ircNetworkName}, source:{sourceHistory.SourceName}, count:{eraseCount}");
+
+			sourceHistory.EraseLastMessages(eraseCount);
+
+			_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"Erased the last {eraseCount} messages");
+		}
+		else
+		{
+			LoggerManager.LogDebug("Failed to get chat history", "", "erase", $"network:{_ircNetworkName}, source:???, count:{eraseCount}");
+		}
+
+		return 0;
+	}
+
+	public async Task<int> BotCommandEditMessage()
+	{
+		if (_ircCommandParameters.Count < 2)
+		{
+			throw new InvalidCommandParametersException(2, 2);
+		}
+
+		int editId = Convert.ToInt32(_ircCommandParameters[0]);
+		string contentNew = String.Join(" ", _ircCommandParameters.Skip(1));
+
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+
+		if (sourceHistory != null)
+		{
+			LoggerManager.LogDebug("Editing chat message", "", "edit", $"network:{_ircNetworkName}, source:{sourceHistory.SourceName}, old:{sourceHistory.GetLastMessages(editId + 1).Last().Content}, new:{contentNew}");
+
+			sourceHistory.EditMessage(editId, contentNew);
+
+			_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"Edited message ID {editId} to: {contentNew}");
+		}
+		else
+		{
+			LoggerManager.LogDebug("Failed to get chat history", "", "erase", $"network:{_ircNetworkName}, source:???");
 		}
 
 		return 0;

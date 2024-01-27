@@ -27,6 +27,7 @@ public partial class IRCBotCommandLineInterface : CommandLineInterface
 	protected IIrcMessageSource _ircMessageSource;
 	protected IList<IIrcMessageTarget> _ircMessageTargets;
 	protected IList<IIrcMessageTarget> _ircReplyTarget;
+	protected string _ircNetworkName;
 
 	public IRCBotCommandLineInterface(IRCBot ircBot)
 	{
@@ -37,7 +38,7 @@ public partial class IRCBotCommandLineInterface : CommandLineInterface
 		_commands["quit"] = (BotCommandQuit, "Shut down the bot", false);
 	}
 
-	public async Task<int> ExecuteBotCommandFunction(Func<Task<int>> commandFunc, string command, List<string> parameters, IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets)
+	public async Task<int> ExecuteBotCommandFunction(Func<Task<int>> commandFunc, string command, List<string> parameters, IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets, string networkName)
 	{
 		// set irc client values to use in the command
 		_ircCommand = command;
@@ -45,6 +46,7 @@ public partial class IRCBotCommandLineInterface : CommandLineInterface
 		_ircClient = client;
 		_ircMessageSource = source;
 		_ircMessageTargets = targets;
+		_ircNetworkName = networkName;
         _ircReplyTarget = _ircBot.GetDefaultReplyTarget(_ircClient, _ircMessageSource, _ircMessageTargets);
 
 		// run the command

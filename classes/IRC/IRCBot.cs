@@ -303,7 +303,9 @@ public abstract partial class IRCBot : IDisposable
 
                     LoggerManager.LogDebug("Executing chat command", "", "command", parameters);
 
-                    await CLI.ExecuteBotCommandFunction(commandFunc, command, CLI.GetArgumentValues(command), client, source, targets);
+        			var networkName = _ircClients.FirstOrDefault(x => x.Value == client).Key;
+
+                    await CLI.ExecuteBotCommandFunction(commandFunc, command, CLI.GetArgumentValues(command), client, source, targets, networkName);
                 }
                 catch (InvalidCommandParametersException exInvalidCommandParameters)
                 {

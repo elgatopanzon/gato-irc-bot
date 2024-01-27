@@ -113,6 +113,24 @@ public partial class Gato : IRCBotBase
 		return sourceHistory;
     }
 
+    public ChatMessageHistory GetHistoryFromClient(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets, string networkName)
+    {
+    	ChatMessageHistory h = null;
+
+		var networkHistory = InitMessageHistoryForClient(client, networkName);
+
+		foreach (var history in networkHistory)
+		{
+			LoggerManager.LogDebug(history.Value.SourceName);
+			if (history.Value.SourceName == source.Name || history.Value.SourceName == String.Join(" ", targets))
+			{
+				return history.Value;
+			}
+		}
+
+    	return h;
+    }
+
     public void SaveMessageHistoryJson(ChatMessageHistory sourceHistory)
     {
     	// find the network name from the chat history list
@@ -287,7 +305,7 @@ public partial class Gato : IRCBotBase
 
     	systemPrompts.Add($"The date is {DateTime.Today}");
     	systemPrompts.Add($"Your name is {IrcConfig.Client.Nickname}");
-    	systemPrompts.Add($"You are talking on the {sourceHistory.NetworkName} IRC network to {sourceHistory.SourceName}");
+    	// systemPrompts.Add($"You are talking on the {sourceHistory.NetworkName} IRC network to {sourceHistory.SourceName}");
 
 
     	// add system prompts counts

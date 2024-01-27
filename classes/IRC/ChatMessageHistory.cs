@@ -101,5 +101,17 @@ public partial class ChatMessageHistory : VObject
 
 		return ChatMessages.Skip(Math.Max(0, ChatMessages.Count() - count)).ToList();
 	}
+
+	public void EraseLastMessages(int count = 0)
+	{
+		ChatMessages = ChatMessages.SkipLast(count).ToList();
+	}
+
+	public void EditMessage(int idFromLast, string contentNew)
+	{
+		int idActual = ChatMessages.Count - idFromLast;
+
+		ChatMessages[idActual].Content = contentNew;
+	}
 }
 
