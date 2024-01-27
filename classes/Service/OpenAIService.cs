@@ -136,9 +136,15 @@ public partial class OpenAIService : Service
 			}
 			catch (System.Exception e)
 			{
-				LoggerManager.LogDebug("OpenAI request exception", "", "exception", e);
+				LoggerManager.LogDebug("OpenAI request exception", "", "exception", e.Message);
 
-				throw;
+				ErrorResult err = new ErrorResult();
+				err.Error = new() {
+					Message = "Connection to OpenAI endpoint failed",
+					Type = "internal",
+				};
+
+				_On_OpenAI_Error(new OpenAIError() { Error = err, Owner = request.OpenAI });
 			}
 		}
 	}

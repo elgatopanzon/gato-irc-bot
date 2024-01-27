@@ -30,6 +30,12 @@ public partial class Gato : IRCBotBase
 	// main config
 	private GatoConfig _config;
 
+	public GatoConfig Config { 
+		get {
+			return _config;
+		}
+	}
+
 	// hold ChatHistory instances per-client, per-source
 	private Dictionary<string, Dictionary<string, ChatMessageHistory>> _messageHistory { get; set; } = new();
 
@@ -255,6 +261,15 @@ public partial class Gato : IRCBotBase
     	r.Stream = true;
     	r.Model = _config.ModelProfile.Inference.Model;
     	r.MaxTokens = _config.ModelProfile.Inference.MaxTokens;
+    	r.PresencePenalty = _config.ModelProfile.Inference.PresencePenalty;
+    	r.FrequencyPenalty = _config.ModelProfile.Inference.FrequencyPenalty;
+    	r.Temperature = _config.ModelProfile.Inference.Temperature;
+    	r.TopP = _config.ModelProfile.Inference.TopP;
+
+    	if (_config.ModelProfile.Inference.Seed != null)
+    	{
+    		r.Seed = (int) _config.ModelProfile.Inference.Seed;
+    	}
 
     	// fill up a list in reverse counting the token size
     	int currentTokenSize = 0;
@@ -262,8 +277,15 @@ public partial class Gato : IRCBotBase
     	List<ChatMessage> messages = new();
 
 		// inject some system prompt information
-    	var systemPrompts = _config.SystemPrompts.DeepCopy();
-    	systemPrompts.Add($"The date is {DateTime.Today}${IrcConfig.Client.Nickname}");
+    	var systemPrompts = _config.DefaultSystemPrompts.DeepCopy();
+
+		// pick up profile system prompts instead if any are set
+    	if (_config.ModelProfile.SystemPrompts.Count > 0)
+    	{
+    		systemPrompts = _config.ModelProfile.SystemPrompts.DeepCopy();
+    	}
+
+    	systemPrompts.Add($"The date is {DateTime.Today}");
     	systemPrompts.Add($"Your name is {IrcConfig.Client.Nickname}");
     	systemPrompts.Add($"You are talking on the {sourceHistory.NetworkName} IRC network to {sourceHistory.SourceName}");
 
@@ -453,6 +475,10 @@ public partial class Gato : IRCBotBase
     public void _On_OpenAI_ChatCompletionError(OpenAIChatCompletionError e)
     {
     	LoggerManager.LogDebug("Chat completion error", "", "error", e.Error);
+
+    	var requestHolder = GetRequestHolder((e.Owner as OpenAiRequest));
+
+        requestHolder.IrcClient.LocalUser.SendNotice(requestHolder.ReplyTarget, e.Error.Error.Message);
     }
 
     public void _On_OpenAI_ChatCompletionResult(OpenAIChatCompletionResult e)

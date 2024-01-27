@@ -63,12 +63,12 @@ public partial class GatoConfig : VConfig
 		}
 	}
 
-	internal readonly VValue<List<string>> _systemPrompts;
+	internal readonly VValue<List<string>> _defaultSystemPrompts;
 
-	public List<string> SystemPrompts
+	public List<string> DefaultSystemPrompts
 	{
-		get { return _systemPrompts.Value; }
-		set { _systemPrompts.Value = value; }
+		get { return _defaultSystemPrompts.Value; }
+		set { _defaultSystemPrompts.Value = value; }
 	}
 
 	public GatoConfig()
@@ -95,7 +95,7 @@ public partial class GatoConfig : VConfig
 		    	})
 		    .ChangeEventsEnabled();
 
-		_systemPrompts = AddValidatedValue<List<string>>(this)
+		_defaultSystemPrompts = AddValidatedValue<List<string>>(this)
 		    .Default(new List<string>() {
 				"You are an IRC chat bot"
 		    })
@@ -121,6 +121,13 @@ public partial class ModelProfile : VConfig
 		set { _historyTokenSize.Value = value; }
 	}
 
+	internal readonly VValue<List<string>> _systemPrompts;
+
+	public List<string> SystemPrompts
+	{
+		get { return _systemPrompts.Value; }
+		set { _systemPrompts.Value = value; }
+	}
 
 	public ModelProfile()
 	{
@@ -130,6 +137,11 @@ public partial class ModelProfile : VConfig
 
 		_historyTokenSize = AddValidatedValue<int>(this)
 		    .Default(2048)
+		    .ChangeEventsEnabled();
+
+		_systemPrompts = AddValidatedValue<List<string>>(this)
+		    .Default(new List<string>() {
+		    })
 		    .ChangeEventsEnabled();
 	}
 }

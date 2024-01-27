@@ -67,8 +67,21 @@ public partial class IRCBotCommandLineInterface : CommandLineInterface
 	public virtual async Task<int> BotCommandHelp()
 	{
         _ircClient.LocalUser.SendMessage(_ircReplyTarget, "Available commands:");
-        _ircClient.LocalUser.SendMessage(_ircReplyTarget, string.Join(", ",
-            _commands.Where(x => x.Value.includeInHelp).Select(kvPair => kvPair.Key)));
+
+        foreach (var cmd in _commands)
+        {
+        	string commandHelp = $"{cmd.Key}";
+
+        	if (_commandArgs.TryGetValue(cmd.Key, out var cmdArgs) && cmdArgs.Count > 0)
+        	{
+        		foreach (var arg in cmdArgs)
+        		{
+        			commandHelp += $" [{arg.Arg} e.g. {arg.Example}]";
+        		}
+        	}
+
+			_ircClient.LocalUser.SendMessage(_ircReplyTarget, commandHelp);
+        }
 
 		return 0;
 	}
