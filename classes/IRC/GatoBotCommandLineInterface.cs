@@ -40,6 +40,8 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		_commandArgs["editmsg"] = new();
 		_commandArgs["editmsg"].Add(("n", "N", "N position from last message", false));
 		_commandArgs["editmsg"].Add(("msg", "MESSAGE", "New message content", false));
+
+		_commands["reloadhistory"] = (BotCommandReloadHistory, "Reload the chat history from file", true);
 	}
 
 	public async Task<int> BotCommandProfile()
@@ -133,6 +135,20 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		{
 			LoggerManager.LogDebug("Failed to get chat history", "", "erase", $"network:{_ircNetworkName}, source:???");
 		}
+
+		return 0;
+	}
+
+	public async Task<int> BotCommandReloadHistory()
+	{
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+
+		sourceHistory.ChatMessages = new();
+		_ircBot.ReloadMessageHistoryForClientSource(_ircClient, _ircNetworkName, sourceHistory.SourceName);
+
+		LoggerManager.LogDebug("Cleared loaded history, will be reloaded");
+
+		_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"History reloaded from file");
 
 		return 0;
 	}

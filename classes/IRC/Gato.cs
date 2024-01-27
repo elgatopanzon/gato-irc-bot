@@ -113,6 +113,17 @@ public partial class Gato : IRCBotBase
 		return sourceHistory;
     }
 
+    public void ReloadMessageHistoryForClientSource(IrcClient client, string networkName, string sourceName)
+    {
+    	var clientHistory = InitMessageHistoryForClient(client, networkName);
+
+		if (clientHistory.TryGetValue(sourceName, out var h))
+		{
+			clientHistory.Remove(sourceName);
+			h = null;
+		}
+    }
+
     public ChatMessageHistory GetHistoryFromClient(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets, string networkName)
     {
     	ChatMessageHistory h = null;
