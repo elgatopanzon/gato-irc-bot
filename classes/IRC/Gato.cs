@@ -204,7 +204,7 @@ public partial class Gato : IRCBotBase
     	Directory.CreateDirectory(chatSavePath);
 
     	// append text content as line to history file
-    	File.AppendAllText(Path.Combine(chatSavePath, "History.log"), parsedMessage+"\n");
+    	File.AppendAllText(Path.Combine(chatSavePath, "History.log"), parsedMessage.Replace("\n", " ")+"\n");
     }
 
     public void LoadChatHistory(ChatMessageHistory sourceHistory, string chatHistoryPath)
@@ -471,7 +471,10 @@ public partial class Gato : IRCBotBase
     {
         if (CanTalkOnNetworkSource(requestHolder.SourceHistory.NetworkName, requestHolder.SourceHistory.SourceName))
         {
-        	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, message.Trim());
+        	foreach (var msg in message.Trim().SplitOnLength(400))
+        	{
+        		requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, msg);
+        	}
         }
 
     	LoggerManager.LogDebug("Talk not enabled for source", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}, response:{message}");
