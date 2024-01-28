@@ -409,7 +409,7 @@ public abstract partial class IRCBot : IDisposable
 
         LoggerManager.LogDebug("Message received", networkName, $"sender:{e.Source.Name}", e.Text);
 
-        OnLocalUserMessageReceived(localUser, e, networkName, isChatCommand:(e.Text.StartsWith(_commandPrefix)));
+        OnLocalUserMessageReceived(localUser, e, networkName, isChatCommand:(e.Text.Replace($"{localUser.NickName}: ", "").StartsWith(_commandPrefix)));
 
         if (e.Source is IrcUser)
         {
@@ -492,7 +492,7 @@ public abstract partial class IRCBot : IDisposable
 
         LoggerManager.LogDebug("Channel message received", networkName, $"channel:{channel.Name}", e.Text);
 
-        OnChannelMessageReceived(channel, e, networkName, IsBotHighlight(channel.Client, e.Text), StripBotHighlight(channel.Client, e.Text), isChatCommand:(e.Text.StartsWith(_commandPrefix)));
+        OnChannelMessageReceived(channel, e, networkName, IsBotHighlight(channel.Client, e.Text), StripBotHighlight(channel.Client, e.Text), isChatCommand:(e.Text.Replace($"{channel.Client.LocalUser.NickName}: ", "").StartsWith(_commandPrefix)));
 
         if (e.Source is IrcUser)
         {
