@@ -387,7 +387,7 @@ public partial class Gato : IRCBotBase
     /*****************************
 	 *  Message process methods  *
 	 *****************************/
-    public async void ProcessIncomingMessage(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets, string networkName, string line, bool isChannel = false, bool isHighlight = false)
+    public async void ProcessIncomingMessage(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets, string networkName, string line, bool isChannel = false, bool isHighlight = false, bool isChatCommand = false)
     {
     	// obtain the source history object for this client-source
 		var sourceHistory = InitMessageHistoryForClientSource(client, source, targets, networkName, isChannel);
@@ -406,7 +406,7 @@ public partial class Gato : IRCBotBase
 
 		// bot highlights make the bot trigger a message to the LLM, and a
 		// response
-		if (isHighlight || !IsNetworkSourceHighlightRequired(networkName, sourceHistory.SourceName))
+		if ((isHighlight || !IsNetworkSourceHighlightRequired(networkName, sourceHistory.SourceName)) && !isChatCommand)
 		{
 			var defaultReplyTarget = GetDefaultReplyTarget(client, source, targets);
 
@@ -576,16 +576,16 @@ public partial class Gato : IRCBotBase
     protected override void OnLocalUserJoinedChannel(IrcLocalUser localUser, IrcChannelEventArgs e, string networkName) { }
     protected override void OnLocalUserLeftChannel(IrcLocalUser localUser, IrcChannelEventArgs e, string networkName) { }
     protected override void OnLocalUserNoticeReceived(IrcLocalUser localUser, IrcMessageEventArgs e, string networkName) { }
-    protected override void OnLocalUserMessageReceived(IrcLocalUser localUser, IrcMessageEventArgs e, string networkName)
+    protected override void OnLocalUserMessageReceived(IrcLocalUser localUser, IrcMessageEventArgs e, string networkName, bool isChatCommand = false)
     {
-		ProcessIncomingMessage(localUser.Client, e.Source, e.Targets, networkName, e.Text, isChannel:false, isHighlight:true);
+		ProcessIncomingMessage(localUser.Client, e.Source, e.Targets, networkName, e.Text, isChannel:false, isHighlight:true, isChatCommand:isChatCommand);
     }
     protected override void OnChannelUserJoined(IrcChannel channel, IrcChannelUserEventArgs e, string networkName) { }
     protected override void OnChannelUserLeft(IrcChannel channel, IrcChannelUserEventArgs e, string networkName) { }
     protected override void OnChannelNoticeReceived(IrcChannel channel, IrcMessageEventArgs e, string networkName) { }
-    protected override void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e, string networkName, bool isBotHighlight, string textHighlightStripped)
+    protected override void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e, string networkName, bool isBotHighlight, string textHighlightStripped, bool isChatCommand = false)
     {
-		ProcessIncomingMessage(channel.Client, e.Source, e.Targets, networkName, textHighlightStripped, isChannel:true, isHighlight:isBotHighlight);
+		ProcessIncomingMessage(channel.Client, e.Source, e.Targets, networkName, textHighlightStripped, isChannel:true, isHighlight:isBotHighlight, isChatCommand:isChatCommand);
     }
 }
 

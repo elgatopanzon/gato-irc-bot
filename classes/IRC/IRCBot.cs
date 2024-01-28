@@ -228,11 +228,11 @@ public abstract partial class IRCBot : IDisposable
     protected virtual void OnLocalUserJoinedChannel(IrcLocalUser localUser, IrcChannelEventArgs e, string networkName) { }
     protected virtual void OnLocalUserLeftChannel(IrcLocalUser localUser, IrcChannelEventArgs e, string networkName) { }
     protected virtual void OnLocalUserNoticeReceived(IrcLocalUser localUser, IrcMessageEventArgs e, string networkName) { }
-    protected virtual void OnLocalUserMessageReceived(IrcLocalUser localUser, IrcMessageEventArgs e, string networkName) { }
+    protected virtual void OnLocalUserMessageReceived(IrcLocalUser localUser, IrcMessageEventArgs e, string networkName, bool isChatCommand = false) { }
     protected virtual void OnChannelUserJoined(IrcChannel channel, IrcChannelUserEventArgs e, string networkName) { }
     protected virtual void OnChannelUserLeft(IrcChannel channel, IrcChannelUserEventArgs e, string networkName) { }
     protected virtual void OnChannelNoticeReceived(IrcChannel channel, IrcMessageEventArgs e, string networkName) { }
-    protected virtual void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e, string networkName, bool isBotHighlight, string textHighlightStripped) { }
+    protected virtual void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e, string networkName, bool isBotHighlight, string textHighlightStripped, bool isChatCommand = false) { }
 
 	/**************************
 	*  Bot commands methods  *
@@ -409,14 +409,14 @@ public abstract partial class IRCBot : IDisposable
 
         LoggerManager.LogDebug("Message received", networkName, $"sender:{e.Source.Name}", e.Text);
 
+        OnLocalUserMessageReceived(localUser, e, networkName, isChatCommand:(e.Text.StartsWith(_commandPrefix)));
+
         if (e.Source is IrcUser)
         {
             // Read message and process if it is chat command.
             if (ReadChatCommand(localUser.Client, e, isChannel:false))
-                return;
+            	return;
         }
-
-        OnLocalUserMessageReceived(localUser, e, networkName);
     }
 
     private void _On_Irc_LocalUser_JoinedChannel(object sender, IrcChannelEventArgs e)
@@ -492,14 +492,14 @@ public abstract partial class IRCBot : IDisposable
 
         LoggerManager.LogDebug("Channel message received", networkName, $"channel:{channel.Name}", e.Text);
 
+        OnChannelMessageReceived(channel, e, networkName, IsBotHighlight(channel.Client, e.Text), StripBotHighlight(channel.Client, e.Text), isChatCommand:(e.Text.StartsWith(_commandPrefix)));
+
         if (e.Source is IrcUser)
         {
             // Read message and process if it is chat command.
             if (ReadChatCommand(channel.Client, e, isChannel:true))
-                return;
+            	return;
         }
-
-        OnChannelMessageReceived(channel, e, networkName, IsBotHighlight(channel.Client, e.Text), StripBotHighlight(channel.Client, e.Text));
     }
 
 
