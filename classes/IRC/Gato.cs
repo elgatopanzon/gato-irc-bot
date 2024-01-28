@@ -557,7 +557,7 @@ public partial class Gato : IRCBotBase
 
     	// save the full response into the chat history
     	ChatMessage chatMessage = new() {
-			Content = e.Result.Choices[0].Message.GetContent(),
+			Content = e.Result.Choices[0].Message.GetContent().Trim(),
 			Nickname = IrcConfig.Client.Nickname,
     	};
 
