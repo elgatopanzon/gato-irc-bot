@@ -423,6 +423,15 @@ public partial class Gato : IRCBotBase
 		var sourceHistory = InitMessageHistoryForClientSource(client, source, targets, networkName, isChannel);
 		var defaultReplyTarget = GetDefaultReplyTarget(client, source, targets);
 
+		// check for improved highlight (bots name appears in text
+		if (!isHighlight)
+		{
+			string pattern = $@"\b{client.LocalUser.NickName}\b";
+			isHighlight = Regex.IsMatch(line, pattern);
+
+			LoggerManager.LogDebug("Extended highlight matching", client.LocalUser.NickName, pattern, isHighlight);
+		}
+
 		// store message as message object in history instance
 		ChatMessage chatMessage = new() {
 			Nickname = source.Name,
