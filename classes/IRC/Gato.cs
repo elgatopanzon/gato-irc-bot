@@ -471,6 +471,16 @@ public partial class Gato : IRCBotBase
     {
         if (CanTalkOnNetworkSource(requestHolder.SourceHistory.NetworkName, requestHolder.SourceHistory.SourceName))
         {
+        	if (_config.StripUnfinishedSentences)
+        	{
+        		var r = Regex.Match(message, @"(^.*[\.\?!]|^\S[^.\?!]*)");
+        		
+        		LoggerManager.LogDebug("Stripping unfinished sentence from line", "", "line", message);
+
+        		message = r.ToString();
+        	}
+
+			// split the string on spaces
         	foreach (var msg in message.Trim().SplitOnLength(350))
         	{
         		requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, msg);
