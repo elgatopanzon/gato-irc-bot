@@ -61,10 +61,12 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"{modelProfile.Key} ({modelProfile.Value.Inference.Model} - {modelProfile.Value.HistoryTokenSize} max Ts)");
 				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"  freqpen:{modelProfile.Value.Inference.FrequencyPenalty}, prespen:{modelProfile.Value.Inference.PresencePenalty}, topp:{modelProfile.Value.Inference.Temperature}, temp:{modelProfile.Value.Inference.Temperature}");
 
+				var systemPrompts = _ircBot.Config.DefaultSystemPrompts;
 				if (modelProfile.Value.SystemPrompts.Count > 0)
 				{
-					_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"  sysprompt:{JsonConvert.SerializeObject(modelProfile.Value.SystemPrompts)}");
+					systemPrompts = modelProfile.Value.SystemPrompts;
 				}
+				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"  sysprompt:{JsonConvert.SerializeObject(systemPrompts)}");
 			}
 		}
 		else {

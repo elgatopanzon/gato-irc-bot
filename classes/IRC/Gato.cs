@@ -411,7 +411,11 @@ public partial class Gato : IRCBotBase
 		LoggerManager.LogDebug("Chat message object", networkName, "chatMessage", chatMessage);
 
 		// trigger a message history save for this incoming client-source
-		SaveChatMessage(sourceHistory, chatMessage);
+		// note: not for commands
+		if (!isChatCommand)
+		{
+			SaveChatMessage(sourceHistory, chatMessage);
+		}
 
 		// bot highlights make the bot trigger a message to the LLM, and a
 		// response
