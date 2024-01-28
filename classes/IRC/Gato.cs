@@ -323,7 +323,7 @@ public partial class Gato : IRCBotBase
     	}
 
     	systemPrompts.Add($"The date is {DateTime.Today}");
-    	systemPrompts.Add($"Your name is {IrcConfig.Client.Nickname}");
+    	systemPrompts.Add($"Your name is {IrcConfig.Client.Nickname} and you are {(sourceHistory.IsChannel ? "talking in a group channel named "+sourceHistory.SourceName : "talking to "+sourceHistory)} on {sourceHistory.NetworkName}");
     	// systemPrompts.Add($"You are talking on the {sourceHistory.NetworkName} IRC network to {sourceHistory.SourceName}");
 
 
