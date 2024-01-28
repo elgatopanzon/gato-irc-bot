@@ -426,7 +426,7 @@ public partial class Gato : IRCBotBase
 		// return if admin only mode is enabled and user isn't admin
 		if (!IsAdmin(source) && _config.AdminOnlyMode)
 		{
-        	client.LocalUser.SendNotice(defaultReplyTarget, "Admin only mode is enabled");
+			LoggerManager.LogDebug("Admin only mode is enabled");
 
 			return;
 		}
