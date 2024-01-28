@@ -47,8 +47,6 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 	public async Task<int> BotCommandProfile()
 	{
-		if (!IsAdmin()) { throw new UserNotAdminException(); }
-
 		// if nothing is provided, list current model profiles
 		if (_ircCommandParameters.Count == 0)
 		{
