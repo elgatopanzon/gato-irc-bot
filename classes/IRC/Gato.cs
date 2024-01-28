@@ -391,6 +391,15 @@ public partial class Gato : IRCBotBase
     {
     	// obtain the source history object for this client-source
 		var sourceHistory = InitMessageHistoryForClientSource(client, source, targets, networkName, isChannel);
+		var defaultReplyTarget = GetDefaultReplyTarget(client, source, targets);
+
+		// return if admin only mode is enabled and user isn't admin
+		if (!IsAdmin(source) && _config.AdminOnlyMode)
+		{
+        	client.LocalUser.SendNotice(defaultReplyTarget, "Admin only mode is enabled");
+
+			return;
+		}
 
 		// store message as message object in history instance
 		ChatMessage chatMessage = new() {
@@ -408,11 +417,16 @@ public partial class Gato : IRCBotBase
 		// response
 		if ((isHighlight || !IsNetworkSourceHighlightRequired(networkName, sourceHistory.SourceName)) && !isChatCommand)
 		{
-			var defaultReplyTarget = GetDefaultReplyTarget(client, source, targets);
 
 			QueueOpenAIChatCompletionsRequest(client, defaultReplyTarget, sourceHistory,  chatMessage);
 		}
     }
+
+
+	public bool IsAdmin(IIrcMessageSource source)
+	{
+		return (IrcBotConfig.AdminNicknames.Contains(source.Name));
+	}
 
     public bool IsNetworkSourceHighlightRequired(string networkName, string sourceName)
     {

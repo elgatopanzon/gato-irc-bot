@@ -79,6 +79,14 @@ public partial class GatoConfig : VConfig
 		set { _stripUnfinishedSentences.Value = value; }
 	}
 
+	internal readonly VValue<bool> _adminOnlyMode;
+
+	public bool AdminOnlyMode
+	{
+		get { return _adminOnlyMode.Value; }
+		set { _adminOnlyMode.Value = value; }
+	}
+
 	public GatoConfig()
 	{
 		_replyWithoutHighlight = AddValidatedValue<Dictionary<string, List<string>>>(this)
@@ -111,6 +119,10 @@ public partial class GatoConfig : VConfig
 
 		_stripUnfinishedSentences = AddValidatedValue<bool>(this)
 		    .Default(true)
+		    .ChangeEventsEnabled();
+
+		_adminOnlyMode = AddValidatedValue<bool>(this)
+		    .Default(false)
 		    .ChangeEventsEnabled();
 	}
 }
