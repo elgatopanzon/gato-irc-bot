@@ -51,6 +51,12 @@ public abstract partial class IRCBot : IDisposable
     private string _commandPrefix { get; set; } = "!";
     private static readonly Regex commandPartsSplitRegex = new Regex("(?<! /.*) ", RegexOptions.None);
 
+    public string CommandPrefix { 
+    	get {
+			return _commandPrefix;
+    	}
+    }
+
 	// CLI interface as command processor
 	private IRCBotCommandLineInterface _cli;
 	protected IRCBotCommandLineInterface CLI

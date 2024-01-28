@@ -30,16 +30,17 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 		_commands["profile"] = (BotCommandProfile, "Switch currently active model profile", true);
 		_commandArgs["profile"] = new();
-		_commandArgs["profile"].Add(("profile_name", "PROFILE_ID", "Profile ID to switch to", false));
+		_commandArgs["profile"].Add(("set", $"{_ircBot.CommandPrefix}profile set model-profile-id", "Profile ID to switch to (list with 'list')", false));
+		_commandArgs["profile"].Add(("list", $"{_ircBot.CommandPrefix}profile list", "List profiles", false));
 
 		_commands["erasemsg"] = (BotCommandEraseMessage, "Erase messages from history", true);
 		_commandArgs["erasemsg"] = new();
-		_commandArgs["erasemsg"].Add(("n", "N", "Number of messages to erase", false));
+		_commandArgs["erasemsg"].Add(("N", $"{_ircBot.CommandPrefix}erasemsg 1", "Number of messages to erase", false));
 
 		_commands["editmsg"] = (BotCommandEditMessage, "Edit a chat message at position N", true);
 		_commandArgs["editmsg"] = new();
-		_commandArgs["editmsg"].Add(("n", "N", "N position from last message", false));
-		_commandArgs["editmsg"].Add(("msg", "MESSAGE", "New message content", false));
+		_commandArgs["editmsg"].Add(("N", "1", "N position from last message", false));
+		_commandArgs["editmsg"].Add(("msg", $"{_ircBot.CommandPrefix}editmsg 1 This is a message", "New message content", false));
 
 		_commands["reloadhistory"] = (BotCommandReloadHistory, "Reload the chat history from file", true);
 		_commands["erasehistory"] = (BotCommandEraseHistory, "Erase the chat history (permanent!)", true);
