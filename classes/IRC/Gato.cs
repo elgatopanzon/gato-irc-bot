@@ -527,7 +527,9 @@ public partial class Gato : IRCBotBase
 
     	LoggerManager.LogDebug("Found request holder", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}");
 
-		e.Text = StripUnfinishedSentence(e.Text);
+		// only strip an unfinished sentence if it's the final line
+    	if (e.IsLast)
+			e.Text = StripUnfinishedSentence(e.Text);
 
 		// only output if we're streaming lines
     	if (_config.StreamingLines)
