@@ -518,34 +518,40 @@ public partial class Gato : IRCBotBase
 
     	LoggerManager.LogDebug("Found request holder", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}");
 
-		// if streaming lines is enabled, write the response line + the
-		// configured TypingString
+		e.Text = StripUnfinishedSentence(e.Text);
+
+		// only output if we're streaming lines
     	if (_config.StreamingLines)
     	{
     		string replyLine = e.Text;
 
-    		if (!e.IsLast)
+    		if (e.IsLast)
     		{
-    			replyLine += _config.IsTypingSuffix;
+    			replyLine += _config.GenerationFinishedSuffix;
     		}
 
         	SendIrcMessage(requestHolder, replyLine);
     	}
     }
 
+    public string StripUnfinishedSentence(string message)
+    {
+        if (_config.StripUnfinishedSentences)
+        {
+        	var r = Regex.Match(message, @"(^.*[\.\?!]|^\S[^.\?!]*)");
+        	
+        	LoggerManager.LogDebug("Stripping unfinished sentence from line", "", "line", message);
+
+        	message = r.ToString();
+        }
+
+        return message;
+    }
+
     public void SendIrcMessage(ChatCompletionRequestHolder requestHolder, string message)
     {
         if (CanTalkOnNetworkSource(requestHolder.SourceHistory.NetworkName, requestHolder.SourceHistory.SourceName))
         {
-        	if (_config.StripUnfinishedSentences)
-        	{
-        		var r = Regex.Match(message, @"(^.*[\.\?!]|^\S[^.\?!]*)");
-        		
-        		LoggerManager.LogDebug("Stripping unfinished sentence from line", "", "line", message);
-
-        		message = r.ToString();
-        	}
-
 			// split the string on spaces
         	foreach (var msg in message.Trim().SplitOnLength(350))
         	{
@@ -625,6 +631,7 @@ public partial class Gato : IRCBotBase
     		LoggerManager.LogDebug("Found request holder", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}");
 
     		string replyLine = e.Result.Choices[0].Message.GetContent();
+			replyLine = StripUnfinishedSentence(replyLine);
 
         	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, replyLine.Trim());
     	}

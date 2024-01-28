@@ -32,12 +32,12 @@ public partial class GatoConfig : VConfig
 		set { _streamingLines.Value = value; }
 	}
 
-	internal readonly VValue<string> _isTypingSuffix;
+	internal readonly VValue<string> _generationFinishedSuffix;
 
-	public string IsTypingSuffix
+	public string GenerationFinishedSuffix
 	{
-		get { return _isTypingSuffix.Value; }
-		set { _isTypingSuffix.Value = value; }
+		get { return _generationFinishedSuffix.Value; }
+		set { _generationFinishedSuffix.Value = value; }
 	}
 
 	internal readonly VValue<string> _modelProfileId;
@@ -97,8 +97,8 @@ public partial class GatoConfig : VConfig
 		    .Default(true)
 		    .ChangeEventsEnabled();
 
-		_isTypingSuffix = AddValidatedValue<string>(this)
-		    .Default(" ...🖉")
+		_generationFinishedSuffix = AddValidatedValue<string>(this)
+		    .Default(" ✓")
 		    .ChangeEventsEnabled();
 
 		_modelProfileId = AddValidatedValue<string>(this)
