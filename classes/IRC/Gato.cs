@@ -423,14 +423,6 @@ public partial class Gato : IRCBotBase
 		var sourceHistory = InitMessageHistoryForClientSource(client, source, targets, networkName, isChannel);
 		var defaultReplyTarget = GetDefaultReplyTarget(client, source, targets);
 
-		// return if admin only mode is enabled and user isn't admin
-		if (!IsAdmin(source) && _config.AdminOnlyMode)
-		{
-			LoggerManager.LogDebug("Admin only mode is enabled");
-
-			return;
-		}
-
 		// store message as message object in history instance
 		ChatMessage chatMessage = new() {
 			Nickname = source.Name,
@@ -445,6 +437,14 @@ public partial class Gato : IRCBotBase
 		if (!isChatCommand)
 		{
 			SaveChatMessage(sourceHistory, chatMessage);
+		}
+
+		// return if admin only mode is enabled and user isn't admin
+		if (!IsAdmin(source) && _config.AdminOnlyMode)
+		{
+			LoggerManager.LogDebug("Admin only mode is enabled");
+
+			return;
 		}
 
 		// bot highlights make the bot trigger a message to the LLM, and a
