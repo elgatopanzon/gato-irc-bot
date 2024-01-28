@@ -562,7 +562,7 @@ public partial class Gato : IRCBotBase
         if (CanTalkOnNetworkSource(requestHolder.SourceHistory.NetworkName, requestHolder.SourceHistory.SourceName))
         {
 			// split the string on spaces
-        	foreach (var msg in message.Trim().SplitOnLength(350))
+        	foreach (var msg in message.SplitOnLength(350))
         	{
         		requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, msg);
         	}
@@ -620,7 +620,7 @@ public partial class Gato : IRCBotBase
 
     	// save the full response into the chat history
     	ChatMessage chatMessage = new() {
-			Content = e.Result.Choices[0].Message.GetContent().Trim(),
+			Content = e.Result.Choices[0].Message.GetContent(),
 			Nickname = IrcConfig.Client.Nickname,
     	};
 
@@ -642,7 +642,7 @@ public partial class Gato : IRCBotBase
     		string replyLine = e.Result.Choices[0].Message.GetContent();
 			replyLine = StripUnfinishedSentence(replyLine);
 
-        	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, replyLine.Trim());
+        	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, replyLine);
     	}
     }
 
