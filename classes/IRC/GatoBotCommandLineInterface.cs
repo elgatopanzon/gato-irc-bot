@@ -54,37 +54,55 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		{
 			_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"Active profile: {_ircBot.Config.ModelProfileId}");
 
-			_ircClient.LocalUser.SendMessage(_ircReplyTarget, "Available model profiles:");
-
-			foreach (var modelProfile in _ircBot.Config.ModelProfiles)
-			{
-				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"{modelProfile.Key} ({modelProfile.Value.Inference.Model} - {modelProfile.Value.HistoryTokenSize} max Ts)");
-				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"  freqpen:{modelProfile.Value.Inference.FrequencyPenalty}, prespen:{modelProfile.Value.Inference.PresencePenalty}, topp:{modelProfile.Value.Inference.Temperature}, temp:{modelProfile.Value.Inference.Temperature}");
-
-				var systemPrompts = _ircBot.Config.DefaultSystemPrompts;
-				if (modelProfile.Value.SystemPrompts.Count > 0)
-				{
-					systemPrompts = modelProfile.Value.SystemPrompts;
-				}
-				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"  sysprompt:{JsonConvert.SerializeObject(systemPrompts)}");
-			}
+			PrintModelProfiles(_ircBot.Config.ModelProfileId);
 		}
 		else {
-			string newModelProfile = _ircCommandParameters[0];
+			string profileCommand = _ircCommandParameters[0];
 
-			if (_ircBot.Config.ModelProfiles.TryGetValue(newModelProfile, out var modelProfile))
+			if (profileCommand == "list")
 			{
-				_ircBot.Config.ModelProfileId = newModelProfile;
-
-				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"Active model profile set to '{newModelProfile}'");
+				PrintModelProfiles();
 			}
-			else
+			else if (profileCommand == "set" && _ircCommandParameters.Count >= 2)
 			{
-				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"Invalid model profile: '{newModelProfile}'");
+				string newModelProfile = _ircCommandParameters[1];
+
+				if (_ircBot.Config.ModelProfiles.TryGetValue(newModelProfile, out var modelProfile))
+				{
+					_ircBot.Config.ModelProfileId = newModelProfile;
+
+					_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"Active model profile set to '{newModelProfile}'");
+				}
+				else
+				{
+					_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"Invalid model profile: '{newModelProfile}'");
+				}
 			}
 		}
 
 		return 0;
+	}
+
+	public async void PrintModelProfiles(string match = "")
+	{
+		foreach (var modelProfile in _ircBot.Config.ModelProfiles)
+		{
+			// skip if match is set and it doesn't match
+			if (match.Length > 0 && modelProfile.Key != match)
+			{
+				continue;
+			}
+
+			_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"{modelProfile.Key} ({modelProfile.Value.Inference.Model} - {modelProfile.Value.HistoryTokenSize} max Ts)");
+			_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"  freqpen:{modelProfile.Value.Inference.FrequencyPenalty}, prespen:{modelProfile.Value.Inference.PresencePenalty}, topp:{modelProfile.Value.Inference.Temperature}, temp:{modelProfile.Value.Inference.Temperature}");
+
+			var systemPrompts = _ircBot.Config.DefaultSystemPrompts;
+			if (modelProfile.Value.SystemPrompts.Count > 0)
+			{
+				systemPrompts = modelProfile.Value.SystemPrompts;
+			}
+			_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"  sysprompt:{JsonConvert.SerializeObject(systemPrompts)}");
+		}
 	}
 
 	public async Task<int> BotCommandEraseMessage()
