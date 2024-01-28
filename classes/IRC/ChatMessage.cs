@@ -50,6 +50,15 @@ public partial class ChatMessage : VObject
 		set { _isBotHighlight.Value = value; }
 	}
 
+	internal readonly VValue<List<string>> _images;
+
+	public List<string> Images
+	{
+		get { return _images.Value; }
+		set { _images.Value = value; }
+	}
+
+
 	public ChatMessage()
 	{
 		_timestamp = AddValidatedValue<DateTime>(this)
@@ -64,6 +73,10 @@ public partial class ChatMessage : VObject
 
 		_isBotHighlight = AddValidatedValue<bool>(this)
 		    .Default(false)
+		    .ChangeEventsEnabled();
+
+		_images = AddValidatedValue<List<string>>(this)
+		    .Default(new List<string>())
 		    .ChangeEventsEnabled();
 	}
 }

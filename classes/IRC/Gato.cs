@@ -344,12 +344,14 @@ public partial class Gato : IRCBotBase
     		int messageTokenSize = GetFakeTokenCount(message.Content);
 
 			if ((currentTokenSize + messageTokenSize) + _config.ModelProfile.Inference.MaxTokens <= _config.ModelProfile.HistoryTokenSize)
-			{
-    			r.Messages.Add(new() {
+			{   
+				var msg = new ChatCompletionRequestMessage() {
     				Role = ((message.Nickname == IrcConfig.Client.Nickname) ? "assistant" : "user"),
     				Name = message.Nickname,
 					Content = message.Content,
-    				});
+    				};
+
+    			r.Messages.Add(msg);
 
     			currentTokenSize += messageTokenSize;
 			}
@@ -373,6 +375,34 @@ public partial class Gato : IRCBotBase
 
 		// re-reverse messages
     	r.Messages.Reverse();
+
+
+		// convert content to an object if there's images
+		var lastMessage = sourceHistory.ChatMessages.Last();
+		if (lastMessage.Images.Count > 0)
+		{
+			var contentObj = new List<Dictionary<string, object>>();
+
+			contentObj.Add(new() {
+				{ "type", "text"},
+				{ "text", lastMessage.Content},
+				});
+
+			foreach (var image in lastMessage.Images)
+			{
+				contentObj.Add(new() {
+					{ "type", "image_url"},
+					{ "image_url", new Dictionary<string, object>() {
+						{ "url", image }
+						}
+					},
+					});
+			}
+
+			// set last message to include images
+			r.Messages.Last().Content = contentObj;
+		}
+
 
     	return r;
     }
@@ -421,6 +451,24 @@ public partial class Gato : IRCBotBase
 		// response
 		if ((isHighlight || !IsNetworkSourceHighlightRequired(networkName, sourceHistory.SourceName)) && !isChatCommand)
 		{
+			// parse image urls and add them as image data
+			var imagesMatch = Regex.Match(chatMessage.Content, @"(https?:)?//?[^\'""<>]+?\.(jpg|jpeg|gif|png)");
+
+			List<string> images = new();
+
+			while (imagesMatch.Success)
+			{
+				images.Add(imagesMatch.Value);
+
+				imagesMatch = imagesMatch.NextMatch();
+			}
+
+			if (images.Count > 0)
+			{
+				LoggerManager.LogDebug("Found image URLs in message", "", "images", images);
+
+				chatMessage.Images = images;
+			}
 
 			QueueOpenAIChatCompletionsRequest(client, defaultReplyTarget, sourceHistory,  chatMessage);
 		}
