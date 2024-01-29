@@ -48,6 +48,7 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		_commands["stop"] = (BotCommandStop, "Stop generating", true);
 		_commands["regenerate"] = (BotCommandRegenerate, "Remove 1 message and regenerate", true);
 		_commands["continue"] = (BotCommandContinue, "Continue generation", true);
+		_commands["recontinue"] = (BotCommandRecontinue, "Remove previous message, and continue", true);
 	}
 
 	public async Task<int> BotCommandProfile()
@@ -244,6 +245,16 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 			modelProfile.Extended.Inference.ChatMessageGenerationTemplate = genTemplate;
 
 		_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"Continuing response");
+
+		return 0;
+	}
+
+	public async Task<int> BotCommandRecontinue()
+	{
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+		sourceHistory.EraseLastMessages(1);
+
+		await BotCommandContinue();
 
 		return 0;
 	}
