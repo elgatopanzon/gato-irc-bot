@@ -394,6 +394,17 @@ public abstract partial class IRCBot : IDisposable
         client.LocalUser.LeftChannel += _On_Irc_LocalUser_LeftChannel;
 
         OnClientRegistered(client, networkName);
+
+        // identify with nickserv
+        if (_ircConfig.Networks[networkName].NickservAuthentication)
+        {
+        	string nickservUser = _ircConfig.Networks[networkName].NickservUsername;
+        	string nickservPass = _ircConfig.Networks[networkName].NickservPassword;
+
+        	LoggerManager.LogDebug("Identifying with nickserv", "", "user", nickservUser);
+
+        	client.LocalUser.SendMessage("NickServ", $"identify {nickservUser} {nickservPass}");
+        }
     }
 
     private void _On_Irc_LocalUser_NoticeReceived(object sender, IrcMessageEventArgs e)

@@ -57,6 +57,31 @@ public partial class IRCNetworkConfig : VConfig
 		set { _floodProtection.Value = value; }
 	}
 
+	internal readonly VValue<string> _nickservUsername;
+
+	public string NickservUsername
+	{
+		get { return _nickservUsername.Value; }
+		set { _nickservUsername.Value = value; }
+	}
+
+	internal readonly VValue<string> _nickservPassword;
+
+	public string NickservPassword
+	{
+		get { return _nickservPassword.Value; }
+		set { _nickservPassword.Value = value; }
+	}
+
+	internal readonly VValue<bool> _nickservAuthentication;
+
+	public bool NickservAuthentication
+	{
+		get { return _nickservAuthentication.Value; }
+		set { _nickservAuthentication.Value = value; }
+	}
+
+
 	public IRCNetworkConfig()
 	{
 		_clientConfigOverrides = AddValidatedNative<IRCClientConfig>(this)
@@ -77,6 +102,18 @@ public partial class IRCNetworkConfig : VConfig
 
 		_floodProtection = AddValidatedNative<IRCFloodProtectionConfig>(this)
 		    .Default(new IRCFloodProtectionConfig())
+		    .ChangeEventsEnabled();
+
+		_nickservUsername = AddValidatedValue<string>(this)
+		    .Default("User")
+		    .ChangeEventsEnabled();
+
+		_nickservPassword = AddValidatedValue<string>(this)
+		    .Default("")
+		    .ChangeEventsEnabled();
+
+		_nickservAuthentication = AddValidatedValue<bool>(this)
+		    .Default(false)
 		    .ChangeEventsEnabled();
 	}
 }
