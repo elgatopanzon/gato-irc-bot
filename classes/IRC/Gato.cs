@@ -466,6 +466,10 @@ public partial class Gato : IRCBotBase
 		// strip non-printable characters from line
 		line = Regex.Replace(line, @"\p{C}+", string.Empty);
 
+		// strip the generation suffix to stop it being included in other bot's
+		// history
+		line = line.Replace(_config.GenerationFinishedSuffix, string.Empty);
+
 		// store message as message object in history instance
 		ChatMessage chatMessage = new() {
 			Nickname = source.Name,
