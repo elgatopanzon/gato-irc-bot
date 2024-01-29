@@ -463,6 +463,9 @@ public partial class Gato : IRCBotBase
 			LoggerManager.LogDebug("Action detected", "", "line", line);
 		}
 
+		// strip non-printable characters from line
+		line = Regex.Replace(line, @"\p{C}+", string.Empty);
+
 		// store message as message object in history instance
 		ChatMessage chatMessage = new() {
 			Nickname = source.Name,
