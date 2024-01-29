@@ -407,9 +407,16 @@ public abstract partial class IRCBot : IDisposable
         }
     }
 
+    public bool UserIgnored(IIrcMessageSource user)
+    {
+    	return _ircBotConfig.IgnoredNicknames.Contains(user.Name);
+    }
+
     private void _On_Irc_LocalUser_NoticeReceived(object sender, IrcMessageEventArgs e)
     {
         var localUser = (IrcLocalUser) sender;
+        if (UserIgnored(localUser))
+        	return;
 
         var networkName = _ircClients.FirstOrDefault(x => x.Value == localUser.Client).Key;
 
@@ -421,6 +428,8 @@ public abstract partial class IRCBot : IDisposable
     private void _On_Irc_LocalUser_MessageReceived(object sender, IrcMessageEventArgs e)
     {
         var localUser = (IrcLocalUser) sender;
+        if (UserIgnored(localUser))
+        	return;
 
         var networkName = _ircClients.FirstOrDefault(x => x.Value == localUser.Client).Key;
 
@@ -471,6 +480,8 @@ public abstract partial class IRCBot : IDisposable
     private void _On_Irc_Channel_UserJoined(object sender, IrcChannelUserEventArgs e)
     {
         var channel = (IrcChannel)sender;
+        if (UserIgnored(e.ChannelUser.User))
+        	return;
 
         var networkName = _ircClients.FirstOrDefault(x => x.Value == channel.Client).Key;
 
@@ -493,6 +504,8 @@ public abstract partial class IRCBot : IDisposable
     private void _On_Irc_Channel_NoticeReceived(object sender, IrcMessageEventArgs e)
     {
         var channel = (IrcChannel)sender;
+        if (UserIgnored(e.Source))
+        	return;
 
         var networkName = _ircClients.FirstOrDefault(x => x.Value == channel.Client).Key;
 
@@ -504,6 +517,8 @@ public abstract partial class IRCBot : IDisposable
     private void _On_Irc_Channel_MessageReceived(object sender, IrcMessageEventArgs e)
     {
         var channel = (IrcChannel)sender;
+        if (UserIgnored(e.Source))
+        	return;
 
         var networkName = _ircClients.FirstOrDefault(x => x.Value == channel.Client).Key;
 

@@ -33,6 +33,14 @@ public partial class IRCBotConfig : VConfig
 		set { _adminNicknames.Value = value; }
 	}
 
+	internal readonly VValue<List<string>> _ignoredNicknames;
+
+	public List<string> IgnoredNicknames
+	{
+		get { return _ignoredNicknames.Value; }
+		set { _ignoredNicknames.Value = value; }
+	}
+
 	internal readonly VValue<bool> _commandsRequireHighlight;
 
 	public bool CommandsRequireHighlight
@@ -48,6 +56,10 @@ public partial class IRCBotConfig : VConfig
 		    .ChangeEventsEnabled();
 
 		_adminNicknames = AddValidatedValue<List<string>>(this)
+		    .Default(new List<string>())
+		    .ChangeEventsEnabled();
+
+		_ignoredNicknames = AddValidatedValue<List<string>>(this)
 		    .Default(new List<string>())
 		    .ChangeEventsEnabled();
 
