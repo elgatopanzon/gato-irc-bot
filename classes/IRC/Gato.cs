@@ -303,6 +303,12 @@ public partial class Gato : IRCBotBase
     	r.Temperature = _config.ModelProfile.Inference.Temperature;
     	r.TopP = _config.ModelProfile.Inference.TopP;
 
+		// apply extended params if enabled and configured
+    	if (_config.ModelProfile.UseGatoGPTExtended)
+    	{
+    		r.Extended = _config.ModelProfile.Extended.DeepCopy();
+    	}
+
     	if (_config.ModelProfile.Inference.Seed != null)
     	{
     		r.Seed = (int) _config.ModelProfile.Inference.Seed;

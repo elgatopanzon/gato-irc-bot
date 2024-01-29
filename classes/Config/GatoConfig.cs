@@ -14,6 +14,8 @@ using GodotEGP.Service;
 using GodotEGP.Event.Events;
 using GodotEGP.Config;
 
+using GodotEGP.AI.OpenAI;
+
 public partial class GatoConfig : VConfig
 {
 	internal readonly VValue<Dictionary<string, List<string>>> _replyWithoutHighlight;
@@ -153,6 +155,22 @@ public partial class ModelProfile : VConfig
 		set { _systemPrompts.Value = value; }
 	}
 
+	internal readonly VValue<bool> _useGatoGPTExtended;
+
+	public bool UseGatoGPTExtended
+	{
+		get { return _useGatoGPTExtended.Value; }
+		set { _useGatoGPTExtended.Value = value; }
+	}
+
+	internal readonly VValue<ChatCompletionRequestGatoGPTExtended> _extended;
+
+	public ChatCompletionRequestGatoGPTExtended Extended
+	{
+		get { return _extended.Value; }
+		set { _extended.Value = value; }
+	}
+
 	public ModelProfile()
 	{
 		_inference = AddValidatedNative<InferenceParams>(this)
@@ -166,6 +184,14 @@ public partial class ModelProfile : VConfig
 		_systemPrompts = AddValidatedValue<List<string>>(this)
 		    .Default(new List<string>() {
 		    })
+		    .ChangeEventsEnabled();
+
+		_useGatoGPTExtended = AddValidatedValue<bool>(this)
+		    .Default(false)
+		    .ChangeEventsEnabled();
+
+		_extended = AddValidatedValue<ChatCompletionRequestGatoGPTExtended>(this)
+		    .Default(new ChatCompletionRequestGatoGPTExtended())
 		    .ChangeEventsEnabled();
 	}
 }
