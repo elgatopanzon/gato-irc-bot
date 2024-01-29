@@ -105,6 +105,8 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 			{
 				systemPrompts = modelProfile.Value.SystemPrompts;
 			}
+			systemPrompts = systemPrompts.Concat(_ircBot.Config.AdditionalSystemPrompts).ToList();
+
 			_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"  sysprompt:{JsonConvert.SerializeObject(systemPrompts)}");
 		}
 	}

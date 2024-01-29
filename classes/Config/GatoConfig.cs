@@ -73,6 +73,14 @@ public partial class GatoConfig : VConfig
 		set { _defaultSystemPrompts.Value = value; }
 	}
 
+	internal readonly VValue<List<string>> _additionalSystemPrompts;
+
+	public List<string> AdditionalSystemPrompts
+	{
+		get { return _additionalSystemPrompts.Value; }
+		set { _additionalSystemPrompts.Value = value; }
+	}
+
 	internal readonly VValue<bool> _stripUnfinishedSentences;
 
 	public bool StripUnfinishedSentences
@@ -117,6 +125,10 @@ public partial class GatoConfig : VConfig
 		    .Default(new List<string>() {
 				"You are an IRC chat bot"
 		    })
+		    .ChangeEventsEnabled();
+
+		_additionalSystemPrompts = AddValidatedValue<List<string>>(this)
+		    .Default(new List<string>())
 		    .ChangeEventsEnabled();
 
 		_stripUnfinishedSentences = AddValidatedValue<bool>(this)

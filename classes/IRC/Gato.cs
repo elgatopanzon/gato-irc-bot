@@ -332,6 +332,8 @@ public partial class Gato : IRCBotBase
     	systemPrompts.Add($"Your name is {IrcConfig.Client.Nickname} and you are {(sourceHistory.IsChannel ? "talking in a group channel named "+sourceHistory.SourceName : "talking to "+sourceHistory)} on {sourceHistory.NetworkName}");
     	// systemPrompts.Add($"You are talking on the {sourceHistory.NetworkName} IRC network to {sourceHistory.SourceName}");
 
+		// add additional system prompts
+		systemPrompts = systemPrompts.Concat(_config.AdditionalSystemPrompts).ToList();
 
     	// add system prompts counts
     	foreach (var systemPrompt in systemPrompts)
