@@ -46,6 +46,8 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		_commands["erasehistory"] = (BotCommandEraseHistory, "Erase the chat history (permanent!)", true);
 
 		_commands["stop"] = (BotCommandStop, "Stop generating", true);
+		_commands["regenerate"] = (BotCommandRegenerate, "Remove 1 message and regenerate", true);
+		_commands["continue"] = (BotCommandContinue, "Continue generation", true);
 	}
 
 	public async Task<int> BotCommandProfile()
@@ -204,6 +206,31 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"Stopping generation");
 
 		return 0;
+	}
+
+	public async Task<int> BotCommandRegenerate()
+	{
+		TriggerRegeneration(1);
+
+		_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"Regenerating response");
+
+		return 0;
+	}
+
+	public async Task<int> BotCommandContinue()
+	{
+		TriggerRegeneration(0);
+		_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"Continuing response");
+
+		return 0;
+	}
+
+	public void TriggerRegeneration(int eraseCount = 0)
+	{
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+
+		sourceHistory.EraseLastMessages(eraseCount);
+		_ircBot.QueueOpenAIChatCompletionsRequest(_ircClient, _ircReplyTarget, sourceHistory, sourceHistory.ChatMessages.Last());
 	}
 }
 

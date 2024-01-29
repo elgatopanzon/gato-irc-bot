@@ -510,7 +510,7 @@ public partial class Gato : IRCBotBase
 				chatMessage.Images = images;
 			}
 
-			QueueOpenAIChatCompletionsRequest(client, defaultReplyTarget, sourceHistory,  chatMessage);
+			QueueOpenAIChatCompletionsRequest(client, defaultReplyTarget, sourceHistory, chatMessage);
 		}
     }
 
@@ -559,8 +559,8 @@ public partial class Gato : IRCBotBase
     	LoggerManager.LogDebug("Found request holder", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}");
 
 		// only strip an unfinished sentence if it's the final line
-    	if (e.IsLast)
-			e.Text = StripUnfinishedSentence(e.Text);
+    	// if (e.IsLast)
+		// 	e.Text = StripUnfinishedSentence(e.Text);
 
 		// only output if we're streaming lines
     	if (_config.StreamingLines)
@@ -673,7 +673,7 @@ public partial class Gato : IRCBotBase
     		LoggerManager.LogDebug("Found request holder", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}");
 
     		string replyLine = e.Result.Choices[0].Message.GetContent();
-			replyLine = StripUnfinishedSentence(replyLine);
+			// replyLine = StripUnfinishedSentence(replyLine);
 
         	requestHolder.IrcClient.LocalUser.SendMessage(requestHolder.ReplyTarget, replyLine);
     	}
