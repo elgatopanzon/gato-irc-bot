@@ -219,7 +219,28 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 	public async Task<int> BotCommandContinue()
 	{
+		var modelProfile = _ircBot.Config.ModelProfile;
+
+		if (modelProfile.UseGatoGPTExtended)
+		{
+			if (modelProfile.Extended == null)
+			{
+				modelProfile.Extended = new();
+			}
+			if (modelProfile.Extended.Inference == null)
+			{
+				modelProfile.Extended.Inference = new();
+			}
+		}
+
+		// backup current generation template, set it to empty then restore it
+		string? genTemplate = modelProfile.Extended.Inference.ChatMessageGenerationTemplate;
+		modelProfile.Extended.Inference.ChatMessageGenerationTemplate = "";
+
 		TriggerRegeneration(0);
+
+		modelProfile.Extended.Inference.ChatMessageGenerationTemplate = genTemplate;
+
 		_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"Continuing response");
 
 		return 0;
