@@ -432,6 +432,16 @@ public partial class Gato : IRCBotBase
 			LoggerManager.LogDebug("Extended highlight matching", client.LocalUser.NickName, pattern, isHighlight);
 		}
 
+		// parse /me into displayed text
+		if (line.StartsWith("\u0001ACTION "))
+		{
+			line = line.Replace("\u0001", "");
+			line = line.Replace("ACTION", source.Name);
+			line = $"*{line}*";
+
+			LoggerManager.LogDebug("Action detected", "", "line", line);
+		}
+
 		// store message as message object in history instance
 		ChatMessage chatMessage = new() {
 			Nickname = source.Name,
