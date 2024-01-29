@@ -44,6 +44,8 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 		_commands["reloadhistory"] = (BotCommandReloadHistory, "Reload the chat history from file", true);
 		_commands["erasehistory"] = (BotCommandEraseHistory, "Erase the chat history (permanent!)", true);
+
+		_commands["stop"] = (BotCommandStop, "Stop generating", true);
 	}
 
 	public async Task<int> BotCommandProfile()
@@ -189,6 +191,17 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 			_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"History erased");
 		}
+
+		return 0;
+	}
+
+	public async Task<int> BotCommandStop()
+	{
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+
+		_ircBot.StopGeneration(sourceHistory);
+
+		_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"Stopping generation");
 
 		return 0;
 	}

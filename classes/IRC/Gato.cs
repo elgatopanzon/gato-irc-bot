@@ -414,6 +414,21 @@ public partial class Gato : IRCBotBase
 		return Convert.ToInt32(c * 0.75);
 	}
 
+	public void StopGeneration(ChatMessageHistory sourceHistory)
+	{
+		foreach (var request in _ongoingOpenAIRequests)
+		{
+			if (request.Value.SourceHistory.Equals(sourceHistory))
+			{
+				// unsubscribe object from all events
+				request.Value.RequestObject.OpenAI.UnsubscribeAll();
+
+				// remove from requests
+				_ongoingOpenAIRequests.Remove(request.Key);
+			}
+		}
+	}
+
     /*****************************
 	 *  Message process methods  *
 	 *****************************/
@@ -630,6 +645,12 @@ public partial class Gato : IRCBotBase
 
     	var requestHolder = GetRequestHolder((e.Owner as OpenAiRequest));
 
+    	if (requestHolder == null)
+    	{
+    		LoggerManager.LogError("Failed to get request holder", "", "result", e.Result);
+    		return;
+    	}
+
     	// save the full response into the chat history
     	ChatMessage chatMessage = new() {
 			Content = e.Result.Choices[0].Message.GetContent(),
@@ -642,12 +663,6 @@ public partial class Gato : IRCBotBase
 		// response
     	if (!_config.StreamingLines)
     	{
-
-    		if (requestHolder == null)
-    		{
-    			LoggerManager.LogError("Failed to get request holder", "", "result", e.Result);
-    			return;
-    		}
 
     		LoggerManager.LogDebug("Found request holder", "", "requestSource", $"network:{requestHolder.SourceHistory.NetworkName}, source:{requestHolder.SourceHistory.SourceName}, trigger:{requestHolder.RequestOriginal.Messages.Last().GetContent()}");
 
