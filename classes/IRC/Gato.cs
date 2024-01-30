@@ -418,8 +418,8 @@ public partial class Gato : IRCBotBase
 	// fake Tokenize method using the 100,000 words = 75,000 tokens estimate
 	public int GetFakeTokenCount(string content)
 	{
-		int c = Math.Max(1, (content.Split(" ").Length));
-		return Convert.ToInt32(c * 0.75);
+		int c = content.Split(new char[] { ' ', '!', '<', '>', '/', '?', '[', ']' }).Count();
+		return Convert.ToInt32(((double) c) * 1.75);
 	}
 
 	public void StopGeneration(ChatMessageHistory sourceHistory)
