@@ -440,7 +440,7 @@ public partial class Gato : IRCBotBase
 	public int GetFakeTokenCount(string content)
 	{
 		int c = content.Split(new char[] { ' ', '!', '<', '>', '/', '?', '[', ']' }).Count();
-		return Convert.ToInt32(((double) c) * 1.75);
+		return Convert.ToInt32(((double) c) * 2);
 	}
 
 	public void StopGeneration(ChatMessageHistory sourceHistory)
