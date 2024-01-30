@@ -307,6 +307,27 @@ public partial class Gato : IRCBotBase
     	if (_config.ModelProfile.UseGatoGPTExtended)
     	{
     		r.Extended = _config.ModelProfile.Extended.DeepCopy();
+
+			// set the prompt cache ID based on network and source
+			if (r.Extended == null)
+			{
+				r.Extended = new();
+			}
+
+			if (r.Extended.Inference == null)
+			{
+				r.Extended.Inference = new();
+			}
+			if (r.Extended.Model == null)
+			{
+				r.Extended.Model = new();
+			}
+
+    		if (r.Extended != null && r.Extended.Inference != null && r.Extended.Model != null)
+    		{
+    			r.Extended.Model.PromptCache = true;
+    			r.Extended.Inference.PromptCacheId = $"GatoGPT-{IrcConfig.Client.Nickname}-{sourceHistory.NetworkName}-{sourceHistory.SourceName}";
+    		}
     	}
 
     	if (_config.ModelProfile.Inference.Seed != null)
