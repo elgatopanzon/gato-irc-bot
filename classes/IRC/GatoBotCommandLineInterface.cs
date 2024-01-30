@@ -49,6 +49,11 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		_commands["regenerate"] = (BotCommandRegenerate, "Remove 1 message and regenerate", true);
 		_commands["continue"] = (BotCommandContinue, "Continue generation", true);
 		_commands["recontinue"] = (BotCommandRecontinue, "Remove previous message, and continue", true);
+
+		_commands["speak"] = (BotCommandSpeak, "Speak to a target", false);
+		_commandArgs["speak"] = new();
+		_commandArgs["speak"].Add(("target", "NickServ", "The target to speak to", false));
+		_commandArgs["speak"].Add(("msg", $"{_ircBot.CommandPrefix}speak NickServ Hello there from a bot!", "Message content to send to the target", false));
 	}
 
 	public async Task<int> BotCommandProfile()
@@ -273,6 +278,23 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 		sourceHistory.EraseLastMessages(eraseCount);
 		_ircBot.QueueOpenAIChatCompletionsRequest(_ircClient, _ircReplyTarget, sourceHistory, sourceHistory.ChatMessages.Last());
+	}
+
+	public async Task<int> BotCommandSpeak()
+	{
+		if (!IsAdmin()) { throw new UserNotAdminException(); }
+
+		if (_ircCommandParameters.Count >= 2)
+		{
+			string target = _ircCommandParameters[0];
+			string msg = String.Join(" ", _ircCommandParameters.Skip(1));
+
+			LoggerManager.LogDebug("Sending message to target", "", target, msg);
+
+			_ircClient.LocalUser.SendMessage(target, msg);
+		}
+
+		return 0;
 	}
 }
 
