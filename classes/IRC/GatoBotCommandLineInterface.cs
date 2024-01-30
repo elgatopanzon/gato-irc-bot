@@ -108,6 +108,12 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 			systemPrompts = systemPrompts.Concat(_ircBot.Config.AdditionalSystemPrompts).ToList();
 
 			_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"  sysprompt:{JsonConvert.SerializeObject(systemPrompts)}");
+
+			// cfg negative prompt
+			if (modelProfile.Value.UseGatoGPTExtended && modelProfile.Value.Extended != null && modelProfile.Value.Extended.Inference != null && modelProfile.Value.Extended.Inference.CfgNegativePrompt != null)
+			{
+				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"  cfgscale:{modelProfile.Value.Extended.Inference.CfgScale}, cfgprompt:\"{modelProfile.Value.Extended.Inference.CfgNegativePrompt}\"");
+			}
 		}
 	}
 
