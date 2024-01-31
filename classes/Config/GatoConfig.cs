@@ -159,6 +159,14 @@ public partial class ModelProfile : VConfig
 		set { _historyTokenSize.Value = value; }
 	}
 
+	internal readonly VValue<int> _maxHistoryLines;
+
+	public int MaxHistoryLines
+	{
+		get { return _maxHistoryLines.Value; }
+		set { _maxHistoryLines.Value = value; }
+	}
+
 	internal readonly VValue<List<string>> _systemPrompts;
 
 	public List<string> SystemPrompts
@@ -191,6 +199,10 @@ public partial class ModelProfile : VConfig
 
 		_historyTokenSize = AddValidatedValue<int>(this)
 		    .Default(2048)
+		    .ChangeEventsEnabled();
+
+		_maxHistoryLines = AddValidatedValue<int>(this)
+		    .Default(500)
 		    .ChangeEventsEnabled();
 
 		_systemPrompts = AddValidatedValue<List<string>>(this)

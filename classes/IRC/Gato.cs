@@ -124,7 +124,7 @@ public partial class Gato : IRCBotBase
 		}
     }
 
-    public void EraseMessageHistoryForClientSource(IrcClient client, string networkName, string sourceName)
+    public void EraseMessageHistoryForClientSource(string networkName, string sourceName)
     {
     	string chatHistoryPath = Path.Combine(ProjectSettings.GlobalizePath(_chatMessagesBasePath), networkName, sourceName, "History.log");
 
@@ -194,6 +194,11 @@ public partial class Gato : IRCBotBase
     	// add message to current source object
 		sourceHistory.ChatMessages.Add(message);
 
+		WriteChatMessageToHistory(sourceHistory, message);
+    }
+
+    public void WriteChatMessageToHistory(ChatMessageHistory sourceHistory, ChatMessage message)
+    {
     	// parse chat message into text log
     	string parsedMessage = $"[{message.Timestamp.ToString()}] <{message.Nickname}> {message.Content}";
 
@@ -212,6 +217,21 @@ public partial class Gato : IRCBotBase
     	if (File.Exists(chatHistoryPath))
     	{
     		var historyLines = File.ReadAllLines(chatHistoryPath);
+    		var historyLinesCount = historyLines.Count();
+
+    		historyLines = historyLines.Reverse().Take(_config.ModelProfile.MaxHistoryLines).Reverse().ToArray();
+
+			// check if history exceeds max lines * 2, then cycle history to a
+			// new file and re-write current one
+    		if (historyLinesCount > (_config.ModelProfile.MaxHistoryLines * 2))
+    		{
+    			LoggerManager.LogDebug("History exceeds max lines * 2", "", "history", $"history:{chatHistoryPath}, lines:{historyLinesCount}, maxLines:{_config.ModelProfile.MaxHistoryLines}");
+
+				// erase/backup current history file
+    			EraseMessageHistoryForClientSource(sourceHistory.NetworkName, sourceHistory.SourceName);
+
+				File.WriteAllLines(chatHistoryPath, historyLines);
+    		}
 
     		foreach (var line in historyLines)
     		{
@@ -256,6 +276,7 @@ public partial class Gato : IRCBotBase
 
       			sourceHistory.ChatMessages.Add(chatMessage);
     		}
+
     	}
     }
 

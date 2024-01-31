@@ -200,7 +200,7 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 		if (sourceHistory != null)
 		{
-			_ircBot.EraseMessageHistoryForClientSource(_ircClient, _ircNetworkName, sourceHistory.SourceName);
+			_ircBot.EraseMessageHistoryForClientSource(_ircNetworkName, sourceHistory.SourceName);
 			_ircBot.ReloadMessageHistoryForClientSource(_ircClient, _ircNetworkName, sourceHistory.SourceName);
 
 			LoggerManager.LogDebug("Erased saved chat history", "", "eraseHistory", $"network:{sourceHistory.NetworkName}, source:{sourceHistory.SourceName}");
