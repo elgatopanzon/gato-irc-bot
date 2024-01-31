@@ -729,7 +729,7 @@ public partial class Gato : IRCBotBase
     protected override void OnChannelNoticeReceived(IrcChannel channel, IrcMessageEventArgs e, string networkName) { }
     protected override void OnChannelMessageReceived(IrcChannel channel, IrcMessageEventArgs e, string networkName, bool isBotHighlight, string textHighlightStripped, bool isChatCommand = false)
     {
-		ProcessIncomingMessage(channel.Client, e.Source, e.Targets, networkName, textHighlightStripped, isChannel:true, isHighlight:isBotHighlight, isChatCommand:isChatCommand);
+		ProcessIncomingMessage(channel.Client, e.Source, e.Targets, networkName, e.Text, isChannel:true, isHighlight:isBotHighlight, isChatCommand:isChatCommand);
     }
 }
 
