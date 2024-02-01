@@ -54,6 +54,8 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		_commandArgs["speak"] = new();
 		_commandArgs["speak"].Add(("target", "NickServ", "The target to speak to", false));
 		_commandArgs["speak"].Add(("msg", $"{_ircBot.CommandPrefix}speak NickServ Hello there from a bot!", "Message content to send to the target", false));
+
+		_commands["tokenize"] = (BotCommandTokenize, "Tokenise a string", true);
 	}
 
 	public async Task<int> BotCommandProfile()
@@ -292,6 +294,26 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 			LoggerManager.LogDebug("Sending message to target", "", target, msg);
 
 			_ircClient.LocalUser.SendMessage(target, msg);
+		}
+
+		return 0;
+	}
+
+	public async Task<int> BotCommandTokenize()
+	{
+		if (_ircCommandParameters.Count() >= 1)
+		{
+			string content = String.Join(" ", _ircCommandParameters);
+
+			var tokenized = _ircBot.GatoGPTTokenizeString(content);
+
+			string formattedTokens = String.Join(" | ", tokenized.Result.Where(x => x.Token.Length > 0).Select(x => $"{x.Id} : '{x.Token}'"));
+
+			_ircClient.LocalUser.SendMessage(_ircReplyTarget, formattedTokens);
+		}
+		else
+		{
+			_ircClient.LocalUser.SendNotice(_ircReplyTarget, "tokenize: no string provided!");
 		}
 
 		return 0;

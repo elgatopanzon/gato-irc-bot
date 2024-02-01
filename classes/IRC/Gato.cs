@@ -19,6 +19,7 @@ using GodotEGP.Service;
 using GodotEGP.Event.Events;
 using GodotEGP.Config;
 using GodotEGP.AI.OpenAI;
+using GodotEGP.AI.GatoGPT;
 
 using IrcDotNet;
 using Newtonsoft.Json;
@@ -476,6 +477,22 @@ public partial class Gato : IRCBotBase
 				_ongoingOpenAIRequests.Remove(request.Key);
 			}
 		}
+	}
+
+	public async Task<List<TokenizedString>> GatoGPTTokenizeString(string content)
+	{
+		// create GatoGPT instance
+		var gatoGpt = new GatoGPT(ServiceRegistry.Get<ConfigManager>().Get<GlobalConfig>().OpenAIConfig);
+
+		// get the tokenized result
+		var res = await gatoGpt.Tokenize(new TokenizeRequest() {
+			Model = _config.ModelProfile.Inference.Model,
+			Content = content,
+			});
+
+		LoggerManager.LogDebug("Tokenize string result", "", "res", res);
+
+		return res.Tokens;
 	}
 
     /*****************************
