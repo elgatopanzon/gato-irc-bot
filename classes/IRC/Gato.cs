@@ -49,11 +49,16 @@ public partial class Gato : IRCBotBase
 	// openAI ongoing requests map
 	private Dictionary<OpenAiRequest, ChatCompletionRequestHolder> _ongoingOpenAIRequests { get; set; } = new();
 
+	// token cache for chat messages
+	private ChatTokenCache _chatTokenCache { get; set; }
+
 	public Gato(IRCConfig config, IRCBotConfig botConfig) : base(config, botConfig)
 	{
 		_config = ServiceRegistry.Get<ConfigManager>().Get<GatoConfig>();
 
 		_openAiService = ServiceRegistry.Get<OpenAIService>();
+
+		_chatTokenCache = new();
 	}
 
     protected override void InitializeCommandLineInterface()
@@ -285,13 +290,13 @@ public partial class Gato : IRCBotBase
     /********************
 	*  OpenAI methods  *
 	********************/
-    public void QueueOpenAIChatCompletionsRequest(IrcClient client, IList<IIrcMessageTarget> replyTarget, ChatMessageHistory sourceHistory, ChatMessage latestMessage)
+    public async void QueueOpenAIChatCompletionsRequest(IrcClient client, IList<IIrcMessageTarget> replyTarget, ChatMessageHistory sourceHistory, ChatMessage latestMessage)
     {
     	LoggerManager.LogDebug("Queuing OpenAI chat request", sourceHistory.NetworkName, "sourceName", sourceHistory.SourceName);
     	LoggerManager.LogDebug("", "", "chatMessage", latestMessage);
 
     	// get chat history formatted as ChatCompletionsRequest
-    	ChatCompletionRequest r = GetChatMessageHistoryAsChatCompletionsRequest(sourceHistory);
+    	ChatCompletionRequest r = await GetChatMessageHistoryAsChatCompletionsRequest(sourceHistory);
 
     	LoggerManager.LogDebug("ChatCompletionsRequest", "", "r", r);
 
@@ -313,7 +318,7 @@ public partial class Gato : IRCBotBase
     	_ongoingOpenAIRequests.Add(requestObj, requestHolder);
     }
 
-    public ChatCompletionRequest GetChatMessageHistoryAsChatCompletionsRequest(ChatMessageHistory sourceHistory)
+    public async Task<ChatCompletionRequest> GetChatMessageHistoryAsChatCompletionsRequest(ChatMessageHistory sourceHistory)
     {
     	ChatCompletionRequest r = new();
     	r.Messages = new();
@@ -357,75 +362,9 @@ public partial class Gato : IRCBotBase
     		r.Seed = (int) _config.ModelProfile.Inference.Seed;
     	}
 
-    	// fill up a list in reverse counting the token size
-    	int currentTokenSize = 0;
-
-    	List<ChatMessage> messages = new();
-
-		// inject some system prompt information
-    	var systemPrompts = _config.DefaultSystemPrompts.DeepCopy();
-
-		// pick up profile system prompts instead if any are set
-    	if (_config.ModelProfile.SystemPrompts.Count > 0)
-    	{
-    		systemPrompts = _config.ModelProfile.SystemPrompts.DeepCopy();
-    	}
-
-    	systemPrompts.Add($"Your name is {IrcConfig.Client.Nickname} and you are {(sourceHistory.IsChannel ? "talking in an IRC channel named "+sourceHistory.SourceName : "talking to "+sourceHistory+" on IRC")} on {sourceHistory.NetworkName}");
-    	// systemPrompts.Add($"You are talking on the {sourceHistory.NetworkName} IRC network to {sourceHistory.SourceName}");
-
-		// add additional system prompts
-		systemPrompts = systemPrompts.Concat(_config.AdditionalSystemPrompts).ToList();
-
-    	// add system prompts counts
-    	foreach (var systemPrompt in systemPrompts)
-    	{
-    		currentTokenSize += GetFakeTokenCount(systemPrompt);
-    	}
-
-    	// create message objects for each history message in reverse until we
-    	// hit the token limit
-    	foreach (var message in sourceHistory.ChatMessages.AsEnumerable().Reverse().ToList())
-    	{
-    		if (message.Content == null)
-    		{
-    			continue;
-    		}
-    		int messageTokenSize = GetFakeTokenCount(message.Content);
-
-			if ((currentTokenSize + messageTokenSize) + _config.ModelProfile.Inference.MaxTokens <= _config.ModelProfile.HistoryTokenSize)
-			{   
-				var msg = new ChatCompletionRequestMessage() {
-    				Role = ((message.Nickname == IrcConfig.Client.Nickname) ? "assistant" : "user"),
-    				Name = message.Nickname,
-					Content = message.Content,
-    				};
-
-    			r.Messages.Add(msg);
-
-    			currentTokenSize += messageTokenSize;
-			}
-			else
-			{
-				LoggerManager.LogDebug("History token limit hit", "", "limit", _config.ModelProfile.HistoryTokenSize);
-
-				break;
-			}
-    	}
-
-    	LoggerManager.LogDebug("History current token limit", "", "tokens", currentTokenSize);
-
-    	foreach (var systemPrompt in systemPrompts.AsEnumerable().Reverse())
-    	{
-			r.Messages.Add(new() {
-				Content = systemPrompt,
-				Role = "system",
-				});
-    	}
-
-		// re-reverse messages
-    	r.Messages.Reverse();
-
+    	// tokenize chat messages and add them to the request object up to the
+    	// max history size
+    	r = await BuildChatCompletionMessages(r, sourceHistory);
 
 		// convert content to an object if there's images
 		var lastMessage = sourceHistory.ChatMessages.Last();
@@ -453,8 +392,188 @@ public partial class Gato : IRCBotBase
 			r.Messages.Last().Content = contentObj;
 		}
 
-
     	return r;
+    }
+
+    public async Task<ChatCompletionRequest> BuildChatCompletionMessages(ChatCompletionRequest request, ChatMessageHistory sourceHistory, int tokenizationStrategy = 1)
+    {
+		// inject some system prompt information
+    	var systemPrompts = _config.DefaultSystemPrompts.DeepCopy();
+
+		// pick up profile system prompts instead if any are set
+    	if (_config.ModelProfile.SystemPrompts.Count > 0)
+    	{
+    		systemPrompts = _config.ModelProfile.SystemPrompts.DeepCopy();
+    	}
+
+    	systemPrompts.Add($"Your name is {IrcConfig.Client.Nickname} and you are {(sourceHistory.IsChannel ? "talking in an IRC channel named "+sourceHistory.SourceName : "talking to "+sourceHistory+" on IRC")} on {sourceHistory.NetworkName}");
+
+		// add additional system prompts
+		systemPrompts = systemPrompts.Concat(_config.AdditionalSystemPrompts).ToList();
+
+		List<ChatCompletionRequestMessage> chatMessages = new();
+
+    	// add chat history messages to list of chat messages
+    	foreach (var message in sourceHistory.ChatMessages)
+    	{
+    		if (message.Content == null)
+    		{
+    			continue;
+    		}
+
+			var msg = new ChatCompletionRequestMessage() {
+    			Role = ((message.Nickname == IrcConfig.Client.Nickname) ? "assistant" : "user"),
+    			Name = message.Nickname,
+				Content = message.Content,
+    			};
+
+    		chatMessages.Add(msg);
+    	}
+
+		int requestTokenCount = 0;
+		int maxTokenCount = _config.ModelProfile.HistoryTokenSize - (int) _config.ModelProfile.Inference.MaxTokens;
+
+		// add system prompts to list of chat messages (at the end, since we'll
+		// reverse them and we want them first
+    	foreach (var systemPrompt in systemPrompts)
+    	{
+			chatMessages.Add(new() {
+				Content = systemPrompt,
+				Role = "system",
+				});
+    	}
+
+    	LoggerManager.LogDebug("Chat history message count", "", "chatMessagesCount", chatMessages.Count);
+
+		// reverse messages
+		chatMessages.Reverse();
+
+		// cache each message and build up the full request
+		// problem: due to underlying models prompt formats we end up with more
+		// tokens than what we'd normally have with a single request and there's
+		// no way to know up front
+		if (tokenizationStrategy == 0)
+		{
+			// loop through chat messages and build up the real request's chat
+			// messages by counting tokens up to token limit
+			for (int i = 0; i < chatMessages.Count; i++)
+			{
+				var message = chatMessages[i];
+
+    			LoggerManager.LogDebug("Tokenizing message", "", i.ToString(), message);
+    			LoggerManager.LogDebug("Messages remaining", "", "remaining", chatMessages.Count - (i + 1));
+
+				var tokens = await GetTokenizedChatMessage(message, _config.ModelProfile.Inference.Model);
+				int tokenizedCount = tokens.Count();
+
+				if (requestTokenCount + tokenizedCount > maxTokenCount)
+				{
+					break;
+				}
+
+    			LoggerManager.LogDebug("Current request token size", "", "requestTokenCount", $"{requestTokenCount} / {maxTokenCount}");
+
+				request.Messages.Add(message);
+				requestTokenCount += tokenizedCount;
+			}
+		}
+
+		// subtractive method, start with the full request's messages and
+		// calculate the percent that it's over, removing messages until it fits
+		// in the allowed token limits
+		else if (tokenizationStrategy == 1)
+		{
+			// set request's chat messages
+			request.Messages = chatMessages;
+
+			// start with the initial request
+			if (requestTokenCount == 0)
+			{
+				var fullTokens = await GatoGPTTokenizeChat(request);
+				int fullTokenCount = fullTokens.Count();
+
+				LoggerManager.LogDebug("Full message history token count", "", "fullTokenCount", fullTokenCount);
+
+
+				requestTokenCount = fullTokenCount;
+			}
+
+			// calculate the percent that we're over the limit, and remove half
+			// of many messages from the history
+			// e.g. if there's 500 messages, and we're 20% over, then we remove
+			// 10% of 500 = 50 messages to remove
+			while (requestTokenCount > maxTokenCount)
+			{
+				var tokens = await GatoGPTTokenizeChat(request);
+				requestTokenCount = tokens.Count();
+
+				double tokenPercentLimit = (double) ((double) requestTokenCount / (double) maxTokenCount);
+
+				LoggerManager.LogDebug("Request limit percent", "", "tokenPercentLimit", tokenPercentLimit);
+
+				// if the percent is > 1.0 then it's over the limits
+				if (tokenPercentLimit > 1.0)
+				{
+					double tokenPercentOver = tokenPercentLimit - 1.0;
+					LoggerManager.LogDebug("Request over limit percent", "", "tokenPercentOver", tokenPercentOver);
+
+					int messagesToRemove = Math.Max(5, Convert.ToInt32((request.Messages.Count) * (tokenPercentOver * 0.5)));
+					LoggerManager.LogDebug("Removing messages", "", "messagesToRemove", messagesToRemove);
+
+					request.Messages = request.Messages.SkipLast(messagesToRemove).ToList();
+				}
+			}
+		}
+		// fake tokenization when not allowed to use extended
+		else if (tokenizationStrategy == -1)
+		{
+			// TODO
+		}
+
+    	request.Messages.Reverse();
+
+    	LoggerManager.LogDebug("Final request token size", "", "requestTokenCount", $"{requestTokenCount} / {maxTokenCount}");
+
+    	return request;
+    }
+
+    public async Task<List<TokenizedString>> GetTokenizedChatMessage(ChatCompletionRequestMessage message, string modelId)
+    {
+    	string messageString = $"{message.Role}{message.Name}{message.Content}";
+    	List<TokenizedString> tokens = _chatTokenCache.GetCache(modelId, messageString);
+
+		// if null then it's a cache miss
+		if (tokens == null)
+		{
+			// construct a ChatCompletionRequest using this message and the
+			// provided modelId
+			ChatCompletionRequest request = new();
+			request.Messages = new();
+			request.Messages.Add(message);
+			request.Model = modelId;
+
+			// set generation template and cfg negatice prompt to empty to not
+			// increase token size
+			request.Extended = new() {
+				Inference = new() {
+					ChatMessageGenerationTemplate = "",
+					CfgNegativePrompt = "",
+					PrePrompt = "",
+				}
+			};
+
+			// retrieve tokenized message and save it in the cache
+			tokens = await GatoGPTTokenizeChat(request);
+			_chatTokenCache.StoreCache(modelId, messageString, tokens);
+
+			LoggerManager.LogDebug("Storing tokenized message cache", "", "message", message);
+		}
+		else
+		{
+			LoggerManager.LogDebug("Retrieved tokenized cache for message", "", "message", message);
+		}
+
+		return tokens;
     }
 
 	// fake Tokenize method using the 100,000 words = 75,000 tokens estimate
@@ -491,6 +610,24 @@ public partial class Gato : IRCBotBase
 			});
 
 		LoggerManager.LogDebug("Tokenize string result", "", "res", res);
+
+		if (res == null)
+		{
+			return null;
+		}
+
+		return res.Tokens;
+
+	}
+	public async Task<List<TokenizedString>> GatoGPTTokenizeChat(ChatCompletionRequest request)
+	{
+		// create GatoGPT instance
+		var gatoGpt = new GatoGPT(ServiceRegistry.Get<ConfigManager>().Get<GlobalConfig>().OpenAIConfig);
+
+		// get the tokenized result
+		var res = await gatoGpt.TokenizeChat(request);
+
+		LoggerManager.LogDebug("Tokenize chat result", "", "res", res);
 
 		return res.Tokens;
 	}
