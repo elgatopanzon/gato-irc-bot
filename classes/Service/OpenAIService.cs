@@ -184,6 +184,11 @@ public partial class OpenAIService : Service
 
 				LoggerManager.LogDebug("Current result object", "", "result", cr.Result);
 
+				if (cr.Result is ChatCompletionResult)
+				{
+					LoggerManager.LogDebug("Current chunk message", "", "result", cr.Result.Choices[0].Message.Content);
+				}
+
 				// check if chunk token ends with a newline and emit a Line
 				// event
 				if (contentDelta != null)
