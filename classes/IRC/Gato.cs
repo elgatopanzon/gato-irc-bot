@@ -280,7 +280,11 @@ public partial class Gato : IRCBotBase
 
       			// LoggerManager.LogDebug("Parsed chat message", "", "chatMessage", chatMessage);
 
-      			sourceHistory.ChatMessages.Add(chatMessage);
+				// only add messages which parse and have a valid content
+				if (chatMessage.Content != null)
+				{
+      				sourceHistory.ChatMessages.Add(chatMessage);
+				}
     		}
 
     	}
