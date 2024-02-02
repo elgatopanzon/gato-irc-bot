@@ -528,7 +528,7 @@ public partial class Gato : IRCBotBase
 					double tokenPercentOver = tokenPercentLimit - 1.0;
 					LoggerManager.LogDebug("Request over limit percent", "", "tokenPercentOver", tokenPercentOver);
 
-					int messagesToRemove = Math.Max(5, Convert.ToInt32((request.Messages.Count) * (tokenPercentOver * 0.5)));
+					int messagesToRemove = Math.Max(5, Math.Min(100, Convert.ToInt32((request.Messages.Count) * (tokenPercentOver * 0.5))));
 					LoggerManager.LogDebug("Removing messages", "", "messagesToRemove", messagesToRemove);
 
 					request.Messages = request.Messages.SkipLast(messagesToRemove).ToList();
