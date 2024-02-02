@@ -140,6 +140,7 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 			LoggerManager.LogDebug("Erasing chat history", "", "erase", $"network:{_ircNetworkName}, source:{sourceHistory.SourceName}, count:{eraseCount}");
 
 			sourceHistory.EraseLastMessages(eraseCount);
+			_ircBot.EraseLastChatHistoryMessages(sourceHistory, eraseCount);
 
 			_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"Erased the last {eraseCount} messages");
 		}

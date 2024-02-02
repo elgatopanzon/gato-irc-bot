@@ -290,6 +290,13 @@ public partial class Gato : IRCBotBase
     	}
     }
 
+	public void EraseLastChatHistoryMessages(ChatMessageHistory sourceHistory, int count)
+	{
+		string historyPath = Path.Combine(GetChatMessagesSavePath(sourceHistory), "History.log");
+
+		var lines = File.ReadAllLines(historyPath);
+		File.WriteAllLines(historyPath, lines.Take(lines.Length - count).ToArray());
+	}
 
     /********************
 	*  OpenAI methods  *
