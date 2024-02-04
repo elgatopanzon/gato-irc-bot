@@ -417,10 +417,10 @@ public partial class Gato : IRCBotBase
     		systemPrompts = _config.ModelProfile.SystemPrompts.DeepCopy();
     	}
 
-    	systemPrompts.Add($"Your name is {IrcConfig.Client.Nickname} and you are {(sourceHistory.IsChannel ? "talking in an IRC channel named "+sourceHistory.SourceName : "talking to "+sourceHistory+" on IRC")} on {sourceHistory.NetworkName}");
-
 		// add additional system prompts
 		systemPrompts = systemPrompts.Concat(_config.AdditionalSystemPrompts).ToList();
+
+    	systemPrompts.Add($"Your name is {IrcConfig.Client.Nickname} and you are {(sourceHistory.IsChannel ? "talking in an IRC channel named "+sourceHistory.SourceName : "talking to "+sourceHistory+" on IRC")} on {sourceHistory.NetworkName}");
 
 		List<ChatCompletionRequestMessage> chatMessages = new();
 
