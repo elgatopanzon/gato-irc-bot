@@ -62,6 +62,10 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		_commands["paste"] = (BotCommandPaste, "Send message from URL paste", true);
 		_commandArgs["paste"] = new();
 		_commandArgs["paste"].Add(("url", "https://somesite.com/text", "The URL to load paste from", true));
+
+		_commands["session"] = (BotCommandSession, "List or set the name of the session history", true);
+		_commandArgs["session"] = new();
+		_commandArgs["session"].Add(("name", "MySession", "The name of the session to change to", true));
 	}
 
 	public async Task<int> BotCommandProfile()
@@ -139,7 +143,7 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 			eraseCount = Convert.ToInt32(_ircCommandParameters[0]);
 		}
 
-		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName, (String.Join(" ", _ircMessageTargets).StartsWith("#") ? true : false));
 
 		if (sourceHistory != null)
 		{
@@ -168,7 +172,7 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		int editId = Convert.ToInt32(_ircCommandParameters[0]);
 		string contentNew = String.Join(" ", _ircCommandParameters.Skip(1));
 
-		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName, (String.Join(" ", _ircMessageTargets).StartsWith("#") ? true : false));
 
 		if (sourceHistory != null)
 		{
@@ -188,16 +192,15 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 	public async Task<int> BotCommandReloadHistory()
 	{
-		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName, (String.Join(" ", _ircMessageTargets).StartsWith("#") ? true : false));
 
 		if (sourceHistory != null)
 		{
-			sourceHistory.ChatMessages = new();
 			_ircBot.ReloadMessageHistoryForClientSource(_ircClient, _ircNetworkName, sourceHistory.SourceName);
 
 			LoggerManager.LogDebug("Cleared loaded history, will be reloaded", "", "reloadHistory", $"network:{sourceHistory.NetworkName}, source:{sourceHistory.SourceName}");
 
-			_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"History reloaded from file");
+			_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"History reloaded for session \"{sourceHistory.SessionName}\"");
 		}
 
 		return 0;
@@ -205,16 +208,16 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 	public async Task<int> BotCommandEraseHistory()
 	{
-		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName, (String.Join(" ", _ircMessageTargets).StartsWith("#") ? true : false));
 
 		if (sourceHistory != null)
 		{
-			_ircBot.EraseMessageHistoryForClientSource(_ircNetworkName, sourceHistory.SourceName);
+			_ircBot.EraseMessageHistoryForClientSource(_ircNetworkName, sourceHistory);
 			_ircBot.ReloadMessageHistoryForClientSource(_ircClient, _ircNetworkName, sourceHistory.SourceName);
 
 			LoggerManager.LogDebug("Erased saved chat history", "", "eraseHistory", $"network:{sourceHistory.NetworkName}, source:{sourceHistory.SourceName}");
 
-			_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"History erased");
+			_ircClient.LocalUser.SendNotice(_ircReplyTarget, $"History erased for session \"{sourceHistory.SessionName}\"");
 		}
 
 		return 0;
@@ -222,7 +225,7 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 	public async Task<int> BotCommandStop()
 	{
-		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName, (String.Join(" ", _ircMessageTargets).StartsWith("#") ? true : false));
 
 		_ircBot.StopGeneration(sourceHistory);
 
@@ -273,7 +276,7 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 	public async Task<int> BotCommandRecontinue()
 	{
-		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName, (String.Join(" ", _ircMessageTargets).StartsWith("#") ? true : false));
 		sourceHistory.EraseLastMessages(1);
 
 		await BotCommandContinue();
@@ -283,7 +286,7 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
 	public void TriggerRegeneration(int eraseCount = 0)
 	{
-		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName);
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName, (String.Join(" ", _ircMessageTargets).StartsWith("#") ? true : false));
 
 		sourceHistory.EraseLastMessages(eraseCount);
 		_ircBot.QueueOpenAIChatCompletionsRequest(_ircClient, _ircReplyTarget, sourceHistory, sourceHistory.ChatMessages.Last());
@@ -348,6 +351,60 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		else
 		{
 			_ircClient.LocalUser.SendNotice(_ircReplyTarget, "paste: no URL provided!");
+		}
+
+		return 0;
+	}
+
+	public async Task<int> BotCommandSession()
+	{
+		var sourceHistory = _ircBot.GetHistoryFromClient(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName, (String.Join(" ", _ircMessageTargets).StartsWith("#") ? true : false));
+    	string chatSavePath = _ircBot.GetChatMessagesSavePath(sourceHistory);
+
+    	List<string> sessionList = Directory.GetFiles(chatSavePath, "*.log").Select((x, y) => x.GetFile().Replace(".log", "")).ToList();
+
+		if (_ircCommandParameters.Count() >= 1)
+		{
+			string sessionName = "";
+
+			try
+			{
+				// load existing session by id
+				int sessionId = Convert.ToInt32(String.Join(" ", _ircCommandParameters));
+
+				sessionName = sessionList[sessionId-1];
+			}
+			catch (System.Exception)
+			{
+				// create new session
+				sessionName = String.Join(" ", _ircCommandParameters);
+
+				if (sessionList.Contains(sessionName))
+				{
+					_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"Switching to session \"{sessionName}\"");
+				}
+				else
+				{
+					_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"Creating new session \"{sessionName}\"");
+				}
+			}
+
+			sourceHistory.SessionName = sessionName;
+
+			BotCommandReloadHistory();
+
+			LoggerManager.LogDebug("Load history session", String.Join(" ", _ircReplyTarget), "session", sessionName);
+		}
+		else
+		{
+			_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"Current session: {sourceHistory.SessionName}");
+
+			int sessionId = 1;
+			foreach (var sessionName in sessionList)
+			{
+				_ircClient.LocalUser.SendMessage(_ircReplyTarget, $"{sessionId}: {sessionName}");
+				sessionId++;
+			}
 		}
 
 		return 0;

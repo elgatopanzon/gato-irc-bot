@@ -34,6 +34,14 @@ public partial class ChatMessageHistory : VObject
 		set { _networkName.Value = value; }
 	}
 
+	internal readonly VValue<string> _sessionName;
+
+	public string SessionName
+	{
+		get { return _sessionName.Value; }
+		set { _sessionName.Value = value; }
+	}
+
 	internal readonly VValue<bool> _isChannel;
 
 	public bool IsChannel
@@ -75,6 +83,10 @@ public partial class ChatMessageHistory : VObject
 
 		_networkName = AddValidatedValue<string>(this)
 		    .Default("")
+		    .ChangeEventsEnabled();
+
+		_sessionName = AddValidatedValue<string>(this)
+		    .Default("History")
 		    .ChangeEventsEnabled();
 
 		_isChannel = AddValidatedValue<bool>(this)

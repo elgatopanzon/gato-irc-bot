@@ -105,16 +105,10 @@ public partial class Gato : IRCBotBase
 			};
 
 			// load any chat history into the existing instance
-    		string chatLoadPath = Path.Combine(ProjectSettings.GlobalizePath(_chatMessagesBasePath), networkName, sourceName, "History.log");
-
-			LoadChatHistory(sourceHistory, chatLoadPath);
+			InitialiseSessionChatHistory(sourceHistory);
 
 			clientHistory.Add(sourceName, sourceHistory);
-
-			LoggerManager.LogDebug("Initialised history for source", networkName, "source", sourceHistory.SourceName);
-			LoggerManager.LogDebug("", networkName, "existingMessages", sourceHistory.ChatMessages.Count);
 		}
-
 
 		return sourceHistory;
     }
@@ -123,22 +117,36 @@ public partial class Gato : IRCBotBase
     {
     	var clientHistory = InitMessageHistoryForClient(client, networkName);
 
-		if (clientHistory.TryGetValue(sourceName, out var h))
+		if (clientHistory.TryGetValue(sourceName, out var sourceHistory))
 		{
-			clientHistory.Remove(sourceName);
-			h = null;
+			sourceHistory.ChatMessages = new();
+			InitialiseSessionChatHistory(sourceHistory);
 		}
     }
 
-    public void EraseMessageHistoryForClientSource(string networkName, string sourceName)
+    public void InitialiseSessionChatHistory(ChatMessageHistory sourceHistory)
     {
-    	string chatHistoryPath = Path.Combine(ProjectSettings.GlobalizePath(_chatMessagesBasePath), networkName, sourceName, "History.log");
+		// load any chat history into the existing instance
+    	string chatLoadPath = Path.Combine(ProjectSettings.GlobalizePath(_chatMessagesBasePath), sourceHistory.NetworkName, sourceHistory.SourceName, $"{sourceHistory.SessionName}.log");
 
-		// backup and erase history
-		File.Move(chatHistoryPath, chatHistoryPath+$".bk-{((DateTimeOffset) DateTime.Now).ToUnixTimeSeconds()}");
+		LoadChatHistory(sourceHistory, chatLoadPath);
+
+		LoggerManager.LogDebug("Initialised history for source", sourceHistory.NetworkName, "source", sourceHistory.SourceName);
+		LoggerManager.LogDebug("", sourceHistory.NetworkName, "existingMessages", sourceHistory.ChatMessages.Count);
     }
 
-    public ChatMessageHistory GetHistoryFromClient(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets, string networkName)
+    public void EraseMessageHistoryForClientSource(string networkName, ChatMessageHistory sourceHistory)
+    {
+    	string chatHistoryPath = Path.Combine(ProjectSettings.GlobalizePath(_chatMessagesBasePath), networkName, sourceHistory.SourceName, $"{sourceHistory.SessionName}.log");
+
+		// backup and erase history
+		if (File.Exists(chatHistoryPath))
+		{
+			File.Move(chatHistoryPath, chatHistoryPath+$".bk-{((DateTimeOffset) DateTime.Now).ToUnixTimeSeconds()}");
+		}
+    }
+
+    public ChatMessageHistory GetHistoryFromClient(IrcClient client, IIrcMessageSource source, IList<IIrcMessageTarget> targets, string networkName, bool isChannel)
     {
     	ChatMessageHistory h = null;
 
@@ -147,7 +155,7 @@ public partial class Gato : IRCBotBase
 		foreach (var history in networkHistory)
 		{
 			LoggerManager.LogDebug(history.Value.SourceName);
-			if (history.Value.SourceName == source.Name || history.Value.SourceName == String.Join(" ", targets))
+			if ((history.Value.SourceName == source.Name || history.Value.SourceName == String.Join(" ", targets)) && history.Value.IsChannel == isChannel)
 			{
 				return history.Value;
 			}
@@ -215,7 +223,7 @@ public partial class Gato : IRCBotBase
     	Directory.CreateDirectory(chatSavePath);
 
     	// append text content as line to history file
-    	File.AppendAllText(Path.Combine(chatSavePath, "History.log"), parsedMessage.Replace("\n", " ")+"\n");
+    	File.AppendAllText(Path.Combine(chatSavePath, $"{sourceHistory.SessionName}.log"), parsedMessage.Replace("\n", " ")+"\n");
     }
 
     public void LoadChatHistory(ChatMessageHistory sourceHistory, string chatHistoryPath)
@@ -234,7 +242,7 @@ public partial class Gato : IRCBotBase
     			LoggerManager.LogDebug("History exceeds max lines * 2", "", "history", $"history:{chatHistoryPath}, lines:{historyLinesCount}, maxLines:{_config.ModelProfile.MaxHistoryLines}");
 
 				// erase/backup current history file
-    			EraseMessageHistoryForClientSource(sourceHistory.NetworkName, sourceHistory.SourceName);
+    			EraseMessageHistoryForClientSource(sourceHistory.NetworkName, sourceHistory);
 
 				File.WriteAllLines(chatHistoryPath, historyLines);
     		}
@@ -292,7 +300,7 @@ public partial class Gato : IRCBotBase
 
 	public void EraseLastChatHistoryMessages(ChatMessageHistory sourceHistory, int count)
 	{
-		string historyPath = Path.Combine(GetChatMessagesSavePath(sourceHistory), "History.log");
+		string historyPath = Path.Combine(GetChatMessagesSavePath(sourceHistory), $"{sourceHistory.SessionName}.log");
 
 		var lines = File.ReadAllLines(historyPath);
 		File.WriteAllLines(historyPath, lines.Take(lines.Length - count).ToArray());
