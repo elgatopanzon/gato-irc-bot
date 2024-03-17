@@ -18,6 +18,8 @@ using GodotEGP.Config;
 
 using GodotEGP.CLI;
 
+using System.Net.Http;
+
 using Newtonsoft.Json;
 
 public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
@@ -56,6 +58,10 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		_commandArgs["speak"].Add(("msg", $"{_ircBot.CommandPrefix}speak NickServ Hello there from a bot!", "Message content to send to the target", false));
 
 		_commands["tokenize"] = (BotCommandTokenize, "Tokenise a string", true);
+
+		_commands["paste"] = (BotCommandPaste, "Send message from URL paste", true);
+		_commandArgs["paste"] = new();
+		_commandArgs["paste"].Add(("url", "https://somesite.com/text", "The URL to load paste from", true));
 	}
 
 	public async Task<int> BotCommandProfile()
@@ -315,6 +321,33 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 		else
 		{
 			_ircClient.LocalUser.SendNotice(_ircReplyTarget, "tokenize: no string provided!");
+		}
+
+		return 0;
+	}
+
+	public async Task<int> BotCommandPaste()
+	{
+		if (_ircCommandParameters.Count() >= 1)
+		{
+			string contentUrl = String.Join(" ", _ircCommandParameters);
+
+			LoggerManager.LogDebug("Load URL text content as message", "", "url", contentUrl);
+
+			string urlContent = "";
+			using (HttpClient client = new HttpClient())
+			{
+    			urlContent = await client.GetStringAsync(contentUrl);
+			}
+
+			LoggerManager.LogDebug("URL text content loaded", "", "content", urlContent);
+
+			// forward the loaded url text comment as an incoming message
+			_ircBot.ProcessIncomingMessage(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName, urlContent, isChannel:(String.Join(" ", _ircMessageTargets).StartsWith("#") ? true : false), isHighlight:true, isChatCommand:false);
+		}
+		else
+		{
+			_ircClient.LocalUser.SendNotice(_ircReplyTarget, "paste: no URL provided!");
 		}
 
 		return 0;
