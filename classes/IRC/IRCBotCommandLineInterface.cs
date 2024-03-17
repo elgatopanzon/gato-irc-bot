@@ -72,6 +72,11 @@ public partial class IRCBotCommandLineInterface : CommandLineInterface
 
         foreach (var cmd in _commands)
         {
+        	if (!cmd.Value.includeInHelp)
+        	{
+        		continue;
+        	}
+
         	string commandHelp = $"{cmd.Key}";
 
         	if (_commandArgs.TryGetValue(cmd.Key, out var cmdArgs) && cmdArgs.Count > 0)
