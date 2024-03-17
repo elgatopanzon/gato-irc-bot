@@ -363,6 +363,11 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 
     	List<string> sessionList = Directory.GetFiles(chatSavePath, "*.log").Select((x, y) => x.GetFile().Replace(".log", "")).ToList();
 
+    	if (!sessionList.Contains(sourceHistory.SessionName))
+    	{
+    		sessionList.Add(sourceHistory.SessionName);
+    	}
+
 		if (_ircCommandParameters.Count() >= 1)
 		{
 			string sessionName = "";
