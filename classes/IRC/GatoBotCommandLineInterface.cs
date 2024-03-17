@@ -333,7 +333,7 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 	{
 		if (_ircCommandParameters.Count() >= 1)
 		{
-			string contentUrl = String.Join(" ", _ircCommandParameters);
+			string contentUrl = _ircCommandParameters[0];
 
 			LoggerManager.LogDebug("Load URL text content as message", "", "url", contentUrl);
 
@@ -341,9 +341,17 @@ public partial class GatoBotCommandLineInterface : IRCBotCommandLineInterface
 			using (HttpClient client = new HttpClient())
 			{
     			urlContent = await client.GetStringAsync(contentUrl);
+    			urlContent = urlContent.Replace("\n", ". ");
 			}
 
 			LoggerManager.LogDebug("URL text content loaded", "", "content", urlContent);
+
+			// add the additional text to the url content if there's more than
+			// just the URL in the message
+			if (_ircCommandParameters.Count > 1)
+			{
+				urlContent += "\n"+String.Join(" ", _ircCommandParameters.Skip(1));
+			}
 
 			// forward the loaded url text comment as an incoming message
 			_ircBot.ProcessIncomingMessage(_ircClient, _ircMessageSource, _ircMessageTargets, _ircNetworkName, urlContent, isChannel:(String.Join(" ", _ircMessageTargets).StartsWith("#") ? true : false), isHighlight:true, isChatCommand:false);
