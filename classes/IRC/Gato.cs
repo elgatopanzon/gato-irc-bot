@@ -25,6 +25,8 @@ using IrcDotNet;
 using Newtonsoft.Json;
 
 using System.Text.RegularExpressions;
+using System.Net.Http;
+using System.Net;
 
 public partial class Gato : IRCBotBase
 {
@@ -686,6 +688,9 @@ public partial class Gato : IRCBotBase
 		// history
 		line = line.Replace(_config.GenerationFinishedSuffix, string.Empty);
 
+		// parse message for special content
+		line = await ParseMessageSpecialContent(line);
+
 		// store message as message object in history instance
 		ChatMessage chatMessage = new() {
 			Nickname = source.Name,
@@ -737,6 +742,35 @@ public partial class Gato : IRCBotBase
 		}
     }
 
+	public async Task<string> ParseMessageSpecialContent(string line)
+	{
+		// load text content from URLs
+		var linkParser = new Regex(@"\b(?:https?://|www\.)\S+\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+		foreach(Match m in linkParser.Matches(line))
+		{
+			LoggerManager.LogDebug("Parsing URL in incoming message", "", "url", m.Value);
+
+
+			using (HttpClient client = new HttpClient())
+			{
+				var urlRequest = (HttpWebRequest)WebRequest.Create(m.Value);
+        		var urlResponse = (HttpWebResponse)urlRequest.GetResponse();
+
+				if (urlResponse.Headers["Content-Type"].Contains("text/plain"))
+				{
+    				string urlContent = await client.GetStringAsync(m.Value);
+    				urlContent = urlContent.Replace("\n", ". ");
+    				urlContent = Regex.Replace(urlContent, "<.*?>", String.Empty);
+
+					LoggerManager.LogDebug("Parsed URL content", "", m.Value, urlContent);
+
+    				line = line.Replace(m.Value, urlContent);
+				}
+			}
+		}
+
+		return line;
+	}
 
 	public bool IsAdmin(IIrcMessageSource source)
 	{
