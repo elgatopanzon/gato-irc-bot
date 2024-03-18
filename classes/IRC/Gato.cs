@@ -759,8 +759,6 @@ public partial class Gato : IRCBotBase
 				if (urlResponse.Headers["Content-Type"].Contains("text/plain"))
 				{
     				string urlContent = await client.GetStringAsync(m.Value);
-    				urlContent = urlContent.Replace("\n", ". ");
-    				urlContent = Regex.Replace(urlContent, "<.*?>", String.Empty);
 
 					LoggerManager.LogDebug("Parsed URL content", "", m.Value, urlContent);
 
